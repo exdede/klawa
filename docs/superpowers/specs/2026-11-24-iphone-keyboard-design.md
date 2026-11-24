@@ -46,8 +46,7 @@ Personal use only, one device. Not for the App Store.
 ## Non-goals (now)
 
 Swipe/glide typing · themes/custom colors · grammar checking (iOS gives only spelling to us) ·
-own emoji panel (emoji stays on Apple's emoji keyboard via the globe; revisit if owner misses it) ·
-per-app or per-chat language · App Store / TestFlight · iPad.
+emoji search · per-app or per-chat language · App Store / TestFlight · iPad.
 
 ## Anti-goals (failure even if it "works")
 
@@ -109,7 +108,7 @@ so they never depend on an App Group. Only two things need an App Group: setting
 container app, and dictation 3b. If App Groups fail under SideStore free signing, settings move into
 the keyboard (gear in the suggestion bar) and dictation 3b is dropped.
 
-**Bottom row (Claude's call):** `123 | lang | space | . | return`. The `lang` key shows `A` / `PL` / `EN`
+**Bottom row (owner's choice):** `123 | lang | emoji | space | . | return`. The `lang` key shows `A` / `PL` / `EN`
 and cycles on tap; the space bar shows the active language faintly (like iOS). `.` long-press holds the
 punctuation set. Globe and system mic stay below the keyboard (iOS draws them on Face ID iPhones).
 
@@ -154,7 +153,8 @@ there (nothing to salvage beyond the code).
    it types, Full Access toggle exists, system mic appears below it, App Group value readable by the app,
    SideStore refresh works on iOS 27.
 1. **Typing core:** layouts, long-press popups, shift/caps, backspace repeat, space cursor drag,
-   number/symbol pages, auto-cap, double-space period, field-aware keys, haptic/click feedback.
+   number/symbol pages, auto-cap, double-space period, field-aware keys, haptic/click feedback,
+   **own emoji panel** behind the emoji key (categories + recently used; owner asked for the key next to `lang`).
 2. **Suggestions:** bilingual bar, language key `Auto/PL/EN`, spelling, autocorrect + undo, learning, math results. **Go/no-go.**
 3. **Clipboard:** history, pin, 1h expiry, chips. Verify iOS paste-permission behavior with Full Access.
 4. **Dictation 3b** (if owner still wants it after using 3a).
