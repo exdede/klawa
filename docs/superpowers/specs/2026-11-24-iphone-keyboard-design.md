@@ -29,7 +29,8 @@ Personal use only, one device. Not for the App Store.
    spelling correction. Owner is **worried it will be worse than Apple's** — see Quality below.
 4. iOS behaviors owner listed from iOS Settings: predictive text, **show math results**
    (`12*3+4` → `40` in the bar), **check spelling**, **caps lock** (double-tap shift), dictation (see 8).
-   Plus the basics: auto-capitalize after `. ! ?`, double-space → `. `, backspace hold-repeat (accelerating),
+   Plus the basics: **no auto-capitalization at all** (owner's choice, 2026-11-25; Shift is manual only),
+   double-space → `. `, backspace hold-repeat (accelerating),
    **space-bar long-press drags the cursor**, number/symbol pages, field-aware keys
    (email/URL keyboards show `@` `.`, return key label follows the field).
 5. **Gboard-style long-press for many characters.** Every key has a long-press popup:
@@ -153,7 +154,7 @@ there (nothing to salvage beyond the code).
    it types, Full Access toggle exists, system mic appears below it, App Group value readable by the app,
    SideStore refresh works on iOS 27.
 1. **Typing core:** layouts, long-press popups, shift/caps, backspace repeat, space cursor drag,
-   number/symbol pages, auto-cap, double-space period, field-aware keys, haptic/click feedback,
+   number/symbol pages, double-space period, field-aware keys, haptic/click feedback,
    **own emoji panel** behind the emoji key (categories + recently used; owner asked for the key next to `lang`).
 2. **Suggestions:** bilingual bar, language key `Auto/PL/EN`, spelling, autocorrect + undo, learning, math results. **Go/no-go.**
 3. **Clipboard:** history, pin, 1h expiry, chips. Verify iOS paste-permission behavior with Full Access.
