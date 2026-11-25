@@ -2,7 +2,7 @@ import UIKit
 import KlawaCore
 
 /// Emoji grid that replaces the keys: recents first, category bar at the bottom.
-final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
+final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout, UIGestureRecognizerDelegate {
     var onEmoji: ((String) -> Void)?
     var onClose: (() -> Void)?
     var onBackspace: (() -> Void)?
@@ -13,6 +13,21 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
               let text = try? String(contentsOf: url, encoding: .utf8) else { return [] }
         return EmojiCatalog.parse(text)
     }()
+
+    /// emoji -> its 5 skin-tone variants (scripts/gen-emoji.py)
+    static let tones: [String: [String]] = {
+        guard let url = Bundle.main.url(forResource: "emoji-tones", withExtension: "txt"),
+              let text = try? String(contentsOf: url, encoding: .utf8) else { return [:] }
+        var out: [String: [String]] = [:]
+        for line in text.split(separator: "\n") {
+            let parts = line.split(separator: "\t")
+            if parts.count == 2 { out[String(parts[0])] = parts[1].split(separator: " ").map(String.init) }
+        }
+        return out
+    }()
+
+    private var tonePopup: AlternatesPopup?
+    private var toneAnchor = CGPoint.zero
 
     private static let symbols = [
         "Recent": "🕘", "Smileys": "😀", "People": "👋", "Animals": "🐻", "Food": "🍔",
@@ -37,6 +52,10 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
         collection.register(EmojiHeader.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: "h")
         collection.dataSource = self
         collection.delegate = self
+        let hold = UILongPressGestureRecognizer(target: self, action: #selector(holdEmoji(_:)))
+        hold.minimumPressDuration = 0.35
+        hold.delegate = self
+        collection.addGestureRecognizer(hold)
 
         let bar = UIStackView()
         bar.distribution = .fillEqually
@@ -69,6 +88,45 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
         guard let attrs = collection.layoutAttributesForSupplementaryElement(
             ofKind: UICollectionView.elementKindSectionHeader, at: IndexPath(item: 0, section: section)) else { return }
         collection.setContentOffset(CGPoint(x: 0, y: min(attrs.frame.minY, max(0, collection.contentSize.height - collection.bounds.height))), animated: false)
+    }
+
+    /// Only emoji with skin tones react to holding; a slow tap on any other still inserts it.
+    override func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
+        guard g is UILongPressGestureRecognizer else { return super.gestureRecognizerShouldBegin(g) }
+        guard let path = collection.indexPathForItem(at: g.location(in: collection)) else { return false }
+        return Self.tones[groups[path.section].emojis[path.item]] != nil
+    }
+
+    /// Hold an emoji with skin tones: slide to a tone, release to insert it (like long-press on keys).
+    @objc private func holdEmoji(_ g: UILongPressGestureRecognizer) {
+        let host = superview ?? self
+        switch g.state {
+        case .began:
+            guard let path = collection.indexPathForItem(at: g.location(in: collection)),
+                  let cell = collection.cellForItem(at: path) else { return }
+            let emoji = groups[path.section].emojis[path.item]
+            guard let variants = Self.tones[emoji] else { return }
+            let frame = cell.convert(cell.bounds, to: host)
+            let rightToLeft = frame.midX > host.bounds.width / 2
+            let popup = AlternatesPopup(options: [emoji] + variants, rightToLeft: rightToLeft, fontSize: 30)
+            let size = popup.bounds.size
+            popup.frame.origin = CGPoint(
+                x: PopupGeometry.alternatesOriginX(keyMidX: frame.midX, popupWidth: size.width, cellWidth: AlternatesPopup.cell.width,
+                                                   pad: AlternatesPopup.pad, containerWidth: host.bounds.width, rightToLeft: rightToLeft),
+                y: max(0, frame.minY - size.height - 2))
+            host.addSubview(popup)
+            tonePopup = popup
+            toneAnchor = g.location(in: host)
+        case .changed:
+            let p = g.location(in: host)
+            tonePopup?.select(dx: p.x - toneAnchor.x, dy: p.y - toneAnchor.y)
+        case .ended:
+            if let s = tonePopup?.selected { onEmoji?(s) }
+            fallthrough
+        default:
+            tonePopup?.removeFromSuperview()
+            tonePopup = nil
+        }
     }
 
     func numberOfSections(in collectionView: UICollectionView) -> Int { groups.count }

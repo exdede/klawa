@@ -141,7 +141,7 @@ final class SuggestionBar: UIView {
 
     private func paint() {
         for (i, l) in slotLabels.enumerated() {
-            l.backgroundColor = i == pressedSlot ? KeyStyle.functionKey : (i == highlighted ? KeyStyle.letterKey : KeyStyle.touchable)
+            l.backgroundColor = i == pressedSlot ? KeyStyle.pressedKey : (i == highlighted ? KeyStyle.letterKey : KeyStyle.touchable)
         }
     }
 

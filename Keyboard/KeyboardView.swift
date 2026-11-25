@@ -391,7 +391,7 @@ final class AlternatesPopup: PopupBox {
     private(set) var selectedIndex = 0
     var selected: String? { options.indices.contains(selectedIndex) ? options[selectedIndex] : nil }
 
-    init(options: [String], rightToLeft: Bool) {
+    init(options: [String], rightToLeft: Bool, fontSize: CGFloat = 24) {
         self.options = options
         self.rightToLeft = rightToLeft
         cols = min(max(options.count, 1), 8)
@@ -406,7 +406,7 @@ final class AlternatesPopup: PopupBox {
                 y: Self.pad + CGFloat(rowCount - 1 - i / cols) * cell.height,
                 width: cell.width, height: cell.height))
             label.text = option
-            label.font = .systemFont(ofSize: 24)
+            label.font = .systemFont(ofSize: fontSize)
             label.textAlignment = .center
             label.adjustsFontSizeToFitWidth = true
             label.layer.cornerRadius = 6
@@ -511,8 +511,7 @@ final class KeyView: UIView {
     }
 
     func setPressed(_ on: Bool) {
-        let pressedColor = isFunction ? KeyStyle.letterKey : KeyStyle.functionKey
-        backgroundColor = on ? pressedColor : (isFunction ? KeyStyle.functionKey : KeyStyle.letterKey)
+        backgroundColor = on ? KeyStyle.pressedKey : (isFunction ? KeyStyle.functionKey : KeyStyle.letterKey)
     }
 
     func setDimmed(_ on: Bool) {

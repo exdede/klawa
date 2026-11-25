@@ -5,6 +5,7 @@ from Unicode CLDR annotations (Polish + English names and keywords, for emoji se
 emoji.txt: one line per group, `Name<TAB>emoji emoji ...`. Fully-qualified emoji only,
 no Component group, no skin-tone variants.
 emoji-keywords.txt: `emoji<TAB>keyword|keyword...`, folded like Lexicon.fold, catalog order.
+emoji-tones.txt: `emoji<TAB>5 skin-tone variants` for emoji with one skin tone (long-press in the panel).
 shortcut: no skin-tone picker, add one if the owner wants it.
 """
 import sys
@@ -47,7 +48,7 @@ GROUPS = {
 
 def main(out_path):
     text = urllib.request.urlopen(URL, timeout=30).read().decode("utf-8")
-    groups, current = {}, None
+    groups, current, tones = {}, None, {}
     for line in text.splitlines():
         if line.startswith("# group:"):
             current = line.split(":", 1)[1].strip()
@@ -58,7 +59,11 @@ def main(out_path):
         if not rest.strip().startswith("fully-qualified"):
             continue
         emoji = "".join(chr(int(c, 16)) for c in codes.split())
-        if SKIN_TONES & set(emoji):
+        used = SKIN_TONES & set(emoji)
+        if len(used) == 1 and emoji.count(next(iter(used))) == 1:
+            base = emoji.replace(next(iter(used)), "").replace("\ufe0f", "")
+            tones.setdefault(base, []).append(emoji)
+        if used:
             continue
         groups.setdefault(GROUPS[current], []).append(emoji)
     assert len(groups) == len(GROUPS), groups.keys()
@@ -66,6 +71,12 @@ def main(out_path):
         for name in GROUPS.values():
             f.write(f"{name}\t{' '.join(groups[name])}\n")
     print({k: len(v) for k, v in groups.items()}, sum(map(len, groups.values())))
+    with open(out_path.replace("emoji.txt", "emoji-tones.txt"), "w", encoding="utf-8") as f:
+        for name in GROUPS.values():
+            for e in groups[name]:
+                variants = tones.get(e.replace("\ufe0f", ""), [])
+                if len(variants) == 5:
+                    f.write(f"{e}\t{' '.join(variants)}\n")
     kw = keywords()
     found = 0
     with open(out_path.replace("emoji.txt", "emoji-keywords.txt"), "w", encoding="utf-8") as f:
