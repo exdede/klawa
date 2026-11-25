@@ -25,15 +25,27 @@ Updated: 2026-11-25. Read with the spec: `docs/superpowers/specs/2026-11-24-ipho
     (Gaussian touch + capped letter odds), emoji search in the bar, ClipboardPanel (pin, delete, 1h expiry,
     password-manager items skipped).
 
+- **Phone test 2026-11-25 evening (owner):** "overall works pretty good". Full Access on. iOS asked to allow
+  pasting (keyboard reads the pasteboard on each new copy; Settings → Klawa → Paste from Other Apps → Allow
+  should stop it, unconfirmed). Suggestion bar taps often did nothing → bar now handles slot touches itself
+  (whole third of the bar, press highlight). Not yet re-tested.
+- **Snippets (owner asked 2026-11-25):** categories of saved texts (emails, sites, misc), edited in the Klawa
+  app (`SnippetsView`), inserted from the keyboard (speech-bubble icon next to the clipboard icon).
+  Stored as JSON in App Group defaults (`Shared/Snippets.swift`). Not yet tested.
+
 ## Next steps, in order
 
-1. **Owner tests Phase 1 fixes + Phases 2/3 on the phone.** Unknowns to watch: lexicon load time and memory
-   (keyboard extension limit), whether iOS shows a paste permission prompt for the keyboard, autocorrect too
-   eager or too shy, touch bias strength (`TouchModel.weight`/`maxLogRatio`).
-2. **Phase 5 translator**: Apple Translation framework (iOS 26+ `TranslationSession` without SwiftUI) if usable
-   in a keyboard extension, else none (no network calls planned).
-3. Phase 4 own dictation: probably not needed (Apple dictation + PL/EN key works).
-4. Ideas not asked for yet: emoji in suggestions for words (`pizza` → 🍕), corpus bigrams for next-word.
+1. **Owner re-tests**: bar taps, snippets, paste prompt. Unknowns still to watch: lexicon memory/load time,
+   autocorrect strength, touch bias strength (`TouchModel.weight`/`maxLogRatio`).
+2. **Owner's call on what next** (translator is lower priority than snippets, owner said). Candidates:
+   - Phase 5 translator: Apple Translation framework (iOS 26+ `TranslationSession` without SwiftUI) if usable
+     in a keyboard extension.
+   - Swipe (glide) typing like Gboard: big piece of work, would reuse the lexicon.
+   - Emoji in suggestions for words (`pizza` → 🍕), from the emoji keyword data.
+   - Better next-word predictions from corpus word pairs (now only learned pairs, bar is empty until learned).
+   - Save a clipboard item straight into a snippet category.
+   - Skin-tone picker for emoji.
+3. Phase 4 own dictation: not needed (Apple dictation + PL/EN key works).
 
 ## Not possible / dropped
 

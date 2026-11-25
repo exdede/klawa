@@ -94,3 +94,10 @@ Po pierwszym otwarciu klawiatury słownik ładuje się ok. pół sekundy, potem 
 - [ ] Schowek (wymaga „Allow Full Access”): skopiuj tekst w innej apce, wróć do klawiatury, w pasku pojawi się `📋 …`, stuknięcie wkleja. Jeśli iOS pyta o zgodę na wklejanie, napisz mi.
 - [ ] Ikona schowka z lewej strony paska: historia, przesunięcie w lewo = Przypnij / Usuń, linki, maile i numery telefonów z tekstu jako osobne wiersze. Nieprzypięte znikają po godzinie.
 - [ ] Hasła z menedżera haseł nie powinny trafiać do historii.
+- [ ] Jeśli iOS pyta o zgodę na wklejanie: Settings → Apps → Klawa → Paste from Other Apps → Allow (jeśli ta opcja tam jest).
+
+## Test szybkich tekstów i paska
+
+- [ ] Stukanie w podpowiedzi: wystarczy stuknąć w dowolne miejsce jednej trzeciej paska, wciśnięte pole się podświetla.
+- [ ] Apka Klawa → Szybkie teksty: kategorie (E-mail, Strony, Różne), dodawanie, zmiana nazwy, usuwanie przesunięciem, kolejność przez Edit.
+- [ ] W klawiaturze ikona dymka obok schowka: kategorie na górze, stuknięcie tekstu wstawia go.
