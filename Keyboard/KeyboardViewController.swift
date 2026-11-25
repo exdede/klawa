@@ -11,6 +11,13 @@ final class KeyboardViewController: UIInputViewController {
     private let keyboard = KeyboardView()
     private let bar = SuggestionBar()
     private var emojiPanel: EmojiPanel?
+    private var clipboardPanel: ClipboardPanel?
+    /// Copied texts; stays in the keyboard's own container, unpinned ones expire after an hour.
+    private var clipboard = ClipboardHistory()
+    /// Just copied and not pasted yet: offered in the suggestion bar.
+    private var freshClip: String?
+    private static let clipboardKey = "clipboard"
+    private static let clipboardChangeKey = "clipboardChangeCount"
     private var layoutName = LayoutName.qwerty
     private var haptics = true
     private var autocorrect = true
@@ -30,7 +37,7 @@ final class KeyboardViewController: UIInputViewController {
     /// Learned words; stays in the keyboard's own container, never leaves the phone.
     private var userWords = UserWords()
     private var unsavedWords = 0
-    private enum SlotAction { case word(String), keepTyped(String), math(String) }
+    private enum SlotAction { case word(String), keepTyped(String), math(String), paste(String) }
     private var slotActions: [SlotAction?] = []
     private var lastCorrection: (original: String, corrected: String)?
     /// Non-nil while typing an emoji search; keys then edit the query, not the document.
@@ -74,6 +81,11 @@ final class KeyboardViewController: UIInputViewController {
         bar.onSlot = { [weak self] in self?.pickSlot($0) }
         bar.onEmoji = { [weak self] in self?.insertEmoji($0) }
         bar.onCloseSearch = { [weak self] in self?.closeSearch() }
+        bar.onClipboard = { [weak self] in self?.showClipboard() }
+        if let data = UserDefaults.standard.data(forKey: Self.clipboardKey),
+           let saved = try? JSONDecoder().decode(ClipboardHistory.self, from: data) {
+            clipboard = saved
+        }
         if let data = UserDefaults.standard.data(forKey: Self.userWordsKey),
            let saved = try? JSONDecoder().decode(UserWords.self, from: data) {
             userWords = saved
@@ -92,6 +104,8 @@ final class KeyboardViewController: UIInputViewController {
         hideEmoji()
         searchQuery = nil
         lastCorrection = nil
+        clipboard.expire(now: Date())
+        captureClipboard()
         state = KeyboardState()
         lastKeyboardType = textDocumentProxy.keyboardType
         state.page = startPage()
@@ -102,6 +116,7 @@ final class KeyboardViewController: UIInputViewController {
 
     override func textDidChange(_ textInput: UITextInput?) {
         super.textDidChange(textInput)
+        captureClipboard()
         if textDocumentProxy.keyboardType != lastKeyboardType {
             lastKeyboardType = textDocumentProxy.keyboardType
             state.page = startPage()
@@ -121,7 +136,7 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func applyLanguage() {
-        // Sets the Apple dictation language (verified on the phone); suggestions use it in Phase 2.
+        // Sets the Apple dictation language (verified on the phone); suggestions also favor it.
         primaryLanguage = languageMode == .en ? "en-US" : "pl-PL"
     }
 
@@ -235,6 +250,12 @@ final class KeyboardViewController: UIInputViewController {
             return
         }
         let typed = TextOps.currentWord(contextBefore: before)
+        if typed.isEmpty, let clip = freshClip {
+            let extracted = ClipExtract.items(in: clip)
+            slotActions = [extracted.first.map { SlotAction.paste($0) }, .paste(clip), extracted.dropFirst().first.map { SlotAction.paste($0) }]
+            bar.show([extracted.first, "📋 " + clip.trimmingCharacters(in: .whitespacesAndNewlines), extracted.dropFirst().first], highlighted: nil)
+            return
+        }
         let s = suggester.suggest(typed: typed, previous: TextOps.previousWord(contextBefore: before),
                                   language: languageMode, user: userWords)
         let fix = autocorrect && plainText ? s.autocorrect : nil
@@ -249,7 +270,7 @@ final class KeyboardViewController: UIInputViewController {
             switch action {
             case .word(let w)?: return w
             case .keepTyped(let t)?: return "“\(t)”"
-            case .math?, nil: return nil
+            case .math?, .paste?, nil: return nil
             }
         }, highlighted: fix != nil ? 1 : nil)
     }
@@ -265,6 +286,9 @@ final class KeyboardViewController: UIInputViewController {
         switch action {
         case .math(let s):
             textDocumentProxy.insertText(s)
+        case .paste(let s):
+            textDocumentProxy.insertText(s)
+            freshClip = nil
         case .keepTyped(let t):
             textDocumentProxy.insertText(" ")
             learn(t, after: previous, times: 2) // chosen as typed: never autocorrect it again
@@ -330,6 +354,7 @@ final class KeyboardViewController: UIInputViewController {
             return
         }
         lastCorrection = nil
+        freshClip = nil // typing on: the paste offer goes away
         if [".", ",", "?", "!", ":", ";"].contains(text) { finishWord() }
         textDocumentProxy.insertText(text)
         lastSpaceAt = nil
@@ -428,15 +453,8 @@ final class KeyboardViewController: UIInputViewController {
         }
         panel.onClose = { [weak self] in self?.hideEmoji() }
         panel.onSearch = { [weak self] in self?.openSearch() }
-        panel.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(panel)
-        NSLayoutConstraint.activate([
-            panel.topAnchor.constraint(equalTo: keyboard.topAnchor),
-            panel.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            panel.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            panel.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-        ])
-        keyboard.isHidden = true
+        hideEmoji()
+        show(panel)
         emojiPanel = panel
     }
 
@@ -461,9 +479,70 @@ final class KeyboardViewController: UIInputViewController {
         refresh()
     }
 
+    // MARK: clipboard
+
+    /// Records a new copy. Skips what password managers mark as secret.
+    private func captureClipboard() {
+        guard hasFullAccess else { return }
+        let pb = UIPasteboard.general
+        let last = UserDefaults.standard.object(forKey: Self.clipboardChangeKey) as? Int
+        guard pb.changeCount != last else { return }
+        UserDefaults.standard.set(pb.changeCount, forKey: Self.clipboardChangeKey)
+        let secret = pb.types.contains { type in
+            ["Concealed", "Transient", "AutoGenerated"].contains { type == "org.nspasteboard.\($0)Type" }
+        }
+        guard last != nil, !secret, pb.hasStrings, let text = pb.string else { return }
+        clipboard.add(text, at: Date())
+        saveClipboard()
+        freshClip = text
+        scheduleSuggestions()
+    }
+
+    private func saveClipboard() {
+        if let data = try? JSONEncoder().encode(clipboard) { UserDefaults.standard.set(data, forKey: Self.clipboardKey) }
+    }
+
+    private func showClipboard() {
+        hideEmoji()
+        searchQuery = nil
+        clipboard.expire(now: Date())
+        let panel = ClipboardPanel(history: clipboard, fullAccess: hasFullAccess)
+        panel.onPaste = { [weak self] text in
+            self?.press()
+            self?.textDocumentProxy.insertText(text)
+            self?.freshClip = nil
+        }
+        panel.onBackspace = { [weak self] in self?.textDocumentProxy.deleteBackward() }
+        panel.onClose = { [weak self] in
+            self?.hideEmoji()
+            self?.refresh()
+        }
+        panel.onChange = { [weak self] history in
+            self?.clipboard = history
+            self?.saveClipboard()
+        }
+        show(panel)
+        clipboardPanel = panel
+    }
+
+    private func show(_ panel: UIView) {
+        panel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(panel)
+        NSLayoutConstraint.activate([
+            panel.topAnchor.constraint(equalTo: keyboard.topAnchor),
+            panel.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            panel.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            panel.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+        keyboard.isHidden = true
+    }
+
+    /// Back to the keys from the emoji or clipboard panel.
     private func hideEmoji() {
         emojiPanel?.removeFromSuperview()
         emojiPanel = nil
+        clipboardPanel?.removeFromSuperview()
+        clipboardPanel = nil
         keyboard.isHidden = false
     }
 }

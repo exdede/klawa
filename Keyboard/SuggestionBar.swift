@@ -6,8 +6,10 @@ final class SuggestionBar: UIView {
     var onSlot: ((Int) -> Void)?
     var onEmoji: ((String) -> Void)?
     var onCloseSearch: (() -> Void)?
+    var onClipboard: (() -> Void)?
 
     private let slots = UIStackView()
+    private let slotRow = UIStackView()
     private var slotButtons: [UIButton] = []
     private let search = UIStackView()
     private let queryLabel = UILabel()
@@ -17,6 +19,13 @@ final class SuggestionBar: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)
         slots.distribution = .fillEqually
+        let clipboard = UIButton(type: .system)
+        clipboard.setImage(UIImage(systemName: "clipboard"), for: .normal)
+        clipboard.tintColor = .secondaryLabel
+        clipboard.widthAnchor.constraint(equalToConstant: 34).isActive = true
+        clipboard.addAction(UIAction { [weak self] _ in self?.onClipboard?() }, for: .touchUpInside)
+        slotRow.addArrangedSubview(clipboard)
+        slotRow.addArrangedSubview(slots)
         for i in 0..<3 {
             let b = UIButton(type: .custom)
             b.titleLabel?.font = .systemFont(ofSize: 17)
@@ -44,7 +53,7 @@ final class SuggestionBar: UIView {
         [queryLabel, results, close].forEach { search.addArrangedSubview($0) }
         search.isHidden = true
 
-        for v in [slots, search] as [UIView] {
+        for v in [slotRow, search] as [UIView] {
             v.translatesAutoresizingMaskIntoConstraints = false
             addSubview(v)
             NSLayoutConstraint.activate([
@@ -67,7 +76,7 @@ final class SuggestionBar: UIView {
 
     /// `highlighted`: the slot space will pick (autocorrect), drawn like a key.
     func show(_ texts: [String?], highlighted: Int?) {
-        slots.isHidden = false
+        slotRow.isHidden = false
         search.isHidden = true
         for (i, b) in slotButtons.enumerated() {
             let text = i < texts.count ? texts[i] : nil
@@ -78,7 +87,7 @@ final class SuggestionBar: UIView {
     }
 
     func showSearch(query: String, emoji: [String]) {
-        slots.isHidden = true
+        slotRow.isHidden = true
         search.isHidden = false
         queryLabel.text = "🔍 " + query + "▏"
         resultsStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
