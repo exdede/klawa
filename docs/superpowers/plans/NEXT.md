@@ -33,21 +33,35 @@ Updated: 2026-11-25. Read with the spec: `docs/superpowers/specs/2026-11-24-ipho
   app (`SnippetsView`), inserted from the keyboard (speech-bubble icon next to the clipboard icon).
   Stored as JSON in App Group defaults (`Shared/Snippets.swift`). Not yet tested.
 
+- **Phone test 2026-11-25 late (owner):** bar taps work now, press highlight liked, snippets OK, paste prompt
+  fixed by owner (Always Allow). Overall "works pretty good". New requests, in the order being built:
+  1. Clipboard/snippets rows only react when tapping the text itself; panel buttons (ABC, backspace...) only on
+     the glyph. Cause: keyboard extensions ignore touches on fully transparent pixels → give every touchable
+     area an almost-invisible background (`KeyStyle.touchable`). Probably also lost taps in key gaps.
+  2. Backspace in emoji/clipboard/snippets panels cannot be held (needs repeat like the key).
+  3. Key-press bubble flickers when typing fast, unpleasant → off by default (setting), key darkens instead.
+  4. Symbols: `$` as its own key next to `zł` on the numbers page, hold `$` → `¢ € £ ¥`; `_` and `#` on the
+     numbers page too.
+  5. Colemak: remove `;` from the letters page, top row should look different (9 wider keys).
+  6. Space a bit small (fine, but bigger is better).
+  7. Look more like Apple's keyboard (iOS 26+ Liquid Glass): colors not liked, Apple letters are smaller,
+     Apple keys start a few points further from the screen edge, keyboard size differs. Screenshots of both
+     keyboards would let us match exactly.
+  8. Emoji in suggestions (yes).
+  9. Next-word predictions from the start, not only after learning (yes) → corpus word pairs.
+  10. Own words / proper nouns (owner's name starting with E that dictation gets wrong): word list in the app,
+      exact capitalization, never autocorrected away, suggested. Apple dictation cannot be changed by us
+      (tip: the name in the owner's Contacts card helps Apple dictation).
+  11. Translator: do it now (owner: why not, plenty of limit left).
+  12. Emoji skin tones: nice to have, low priority.
+  - Swipe/glide typing: owner does not use it, dropped.
+
 ## Next steps, in order
 
-1. **Owner re-tests**: bar taps, snippets, paste prompt. Unknowns still to watch: lexicon memory/load time,
-   autocorrect strength, touch bias strength (`TouchModel.weight`/`maxLogRatio`).
-2. **Owner's call on what next** (translator is lower priority than snippets, owner said). Candidates:
-   - Phase 5 translator: Apple Translation framework (iOS 26+ `TranslationSession` without SwiftUI) if usable
-     in a keyboard extension.
-   - Swipe (glide) typing like Gboard: big piece of work, would reuse the lexicon.
-   - Emoji in suggestions for words (`pizza` → 🍕), from the emoji keyword data.
-   - Better next-word predictions from corpus word pairs (now only learned pairs, bar is empty until learned).
-   - Save a clipboard item straight into a snippet category.
-   - Skin-tone picker for emoji.
-3. Phase 4 own dictation: not needed (Apple dictation + PL/EN key works).
+1. Build items 1–12 above, then owner re-tests in one batch.
+2. Phase 4 own dictation: not needed (Apple dictation + PL/EN key works).
 
 ## Not possible / dropped
 
 - **Genmoji**: iOS gives third-party keyboards no API to create or insert them. Owner uses Apple's emoji keyboard via the globe.
-- Auto language mode, Colemak-DH, auto-capitalization (owner's choices).
+- Auto language mode, Colemak-DH, auto-capitalization, swipe typing (owner's choices).
