@@ -2,6 +2,21 @@
 
 Jednorazowo ~30–60 min. Potem co 7 dni odświeżenie z samego telefonu (~1 min).
 
+## Wariant bez SideStore (aktualnie używany)
+
+Logowanie Apple ID w SideStore na telefonie nie działało, więc Klawę instaluje sam iloader z komputera:
+
+1. Pobierz `Klawa.ipa` na komputer:
+   ```bash
+   curl -L -o ~/Downloads/Klawa.ipa https://github.com/exdede/klawa/releases/download/nightly/Klawa.ipa
+   ```
+2. Podłącz iPhone'a kablem → iloader → zaloguj Apple ID → **Import IPA** → wybierz `~/Downloads/Klawa.ipa`.
+3. Na iPhonie: Settings → General → VPN & Device Management → twój Apple ID → **Trust**.
+4. Klawiaturę włączasz jak w punkcie 11 niżej.
+
+**Co 7 dni** powtórz kroki 1–2 (~2 min, kablem). Dane Klawy zostają. Ten sam sposób instaluje nowe wersje.
+Developer Mode musi zostać włączony, dopóki używasz Klawy. Po wyłączeniu Klawa przestaje działać.
+
 ## 1. Raz, na Linuxie
 
 1. Sterownik do iPhone'a po kablu:
