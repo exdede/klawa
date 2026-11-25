@@ -4,4 +4,5 @@ enum SettingsKey {
     static let haptics = "haptics"
     static let languageMode = "languageMode"
     static let autocorrect = "autocorrect"
+    static let snippets = "snippets"
 }

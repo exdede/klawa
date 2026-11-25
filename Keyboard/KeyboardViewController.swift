@@ -12,6 +12,7 @@ final class KeyboardViewController: UIInputViewController {
     private let bar = SuggestionBar()
     private var emojiPanel: EmojiPanel?
     private var clipboardPanel: ClipboardPanel?
+    private var snippetsPanel: SnippetsPanel?
     /// Copied texts; stays in the keyboard's own container, unpinned ones expire after an hour.
     private var clipboard = ClipboardHistory()
     /// Just copied and not pasted yet: offered in the suggestion bar.
@@ -82,6 +83,7 @@ final class KeyboardViewController: UIInputViewController {
         bar.onEmoji = { [weak self] in self?.insertEmoji($0) }
         bar.onCloseSearch = { [weak self] in self?.closeSearch() }
         bar.onClipboard = { [weak self] in self?.showClipboard() }
+        bar.onSnippets = { [weak self] in self?.showSnippets() }
         if let data = UserDefaults.standard.data(forKey: Self.clipboardKey),
            let saved = try? JSONDecoder().decode(ClipboardHistory.self, from: data) {
             clipboard = saved
@@ -525,6 +527,23 @@ final class KeyboardViewController: UIInputViewController {
         clipboardPanel = panel
     }
 
+    private func showSnippets() {
+        hideEmoji()
+        searchQuery = nil
+        let panel = SnippetsPanel(fullAccess: hasFullAccess)
+        panel.onInsert = { [weak self] text in
+            self?.press()
+            self?.textDocumentProxy.insertText(text)
+        }
+        panel.onBackspace = { [weak self] in self?.textDocumentProxy.deleteBackward() }
+        panel.onClose = { [weak self] in
+            self?.hideEmoji()
+            self?.refresh()
+        }
+        show(panel)
+        snippetsPanel = panel
+    }
+
     private func show(_ panel: UIView) {
         panel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(panel)
@@ -537,12 +556,14 @@ final class KeyboardViewController: UIInputViewController {
         keyboard.isHidden = true
     }
 
-    /// Back to the keys from the emoji or clipboard panel.
+    /// Back to the keys from the emoji, clipboard or snippets panel.
     private func hideEmoji() {
         emojiPanel?.removeFromSuperview()
         emojiPanel = nil
         clipboardPanel?.removeFromSuperview()
         clipboardPanel = nil
+        snippetsPanel?.removeFromSuperview()
+        snippetsPanel = nil
         keyboard.isHidden = false
     }
 }
