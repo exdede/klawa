@@ -56,9 +56,15 @@ Updated: 2026-11-25. Read with the spec: `docs/superpowers/specs/2026-11-24-ipho
   12. Emoji skin tones: nice to have, low priority.
   - Swipe/glide typing: owner does not use it, dropped.
 
+  **All 12 built 2026-11-25 night** (CI SDK: Xcode 26.6, iOS SDK 26.5). Not yet tested on the phone.
+  Look (item 7) is a guess: margins 6, letters 23 regular, rounder keys, lighter function keys
+  (`KeyStyle`, marked shortcut) until the owner sends screenshots of Apple's keyboard and Klawa.
+
 ## Next steps, in order
 
-1. Build items 1–12 above, then owner re-tests in one batch.
+1. Owner tests the batch (`docs/INSTALL.md`, "Test paczki z 25.11 wieczorem") and sends screenshots for the look.
+2. Translator needs PL + EN downloaded (app → Tłumacz button uses SwiftUI `prepareTranslation`); keyboard uses
+   `TranslationSession(installedSource:target:)` (iOS 26). Unverified on device.
 2. Phase 4 own dictation: not needed (Apple dictation + PL/EN key works).
 
 ## Not possible / dropped

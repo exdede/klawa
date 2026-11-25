@@ -101,3 +101,18 @@ Po pierwszym otwarciu klawiatury słownik ładuje się ok. pół sekundy, potem 
 - [ ] Stukanie w podpowiedzi: wystarczy stuknąć w dowolne miejsce jednej trzeciej paska, wciśnięte pole się podświetla.
 - [ ] Apka Klawa → Szybkie teksty: kategorie (E-mail, Strony, Różne), dodawanie, zmiana nazwy, usuwanie przesunięciem, kolejność przez Edit.
 - [ ] W klawiaturze ikona dymka obok schowka: kategorie na górze, stuknięcie tekstu wstawia go.
+
+## Test paczki z 25.11 wieczorem
+
+- [ ] Schowek i szybkie teksty: stuknięcie w dowolne miejsce wiersza wkleja. Przyciski ABC, Wyczyść, ⌫ działają na całej powierzchni.
+- [ ] ⌫ w emoji, schowku i szybkich tekstach można przytrzymać.
+- [ ] Bez mrugającej litery nad klawiszem, klawisz tylko ciemnieje. Apka Klawa → „Powiększona litera nad klawiszem” włącza ją z powrotem.
+- [ ] `123`: `zł` i `$` osobno, przytrzymanie `$` daje ¢ € £ ¥, w dolnym rzędzie są `_` i `#`. `&` jest teraz na `#+=`.
+- [ ] Colemak: górny rząd bez średnika, 9 szerszych klawiszy (0 pod przytrzymaniem `y`).
+- [ ] Większa spacja, mniejsze litery, większy odstęp od krawędzi, jaśniejsze klawisze funkcyjne, bardziej zaokrąglone.
+- [ ] Emoji w podpowiedziach: wpisz `pizza` (emoji po prawej zamienia słowo) albo `pizza ` ze spacją (emoji po lewej dopisuje).
+- [ ] Apka Klawa → Moje słowa: dodaj imię z wielką literą. Klawiatura je podpowiada, poprawia literówki na nie i nigdy go nie zmienia.
+- [ ] Podpowiedzi od razu, bez nauki: na początku tekstu, po `dzień` (dobry), po `bardzo`, po angielskim `thank`.
+- [ ] Tłumacz: najpierw apka Klawa → Tłumacz → Pobierz polski i angielski. Potem ikona tłumacza w pasku, pisz, tłumaczenie pojawia się w pasku, stuknięcie albo return je wstawia. Klawisz PL/EN zmienia kierunek.
+- [ ] Emoji z kolorem skóry (np. 👋): przytrzymaj, przesuń palec na kolor, puść.
+- [ ] Zrzuty ekranu dla wyglądu: klawiatura Apple i Klawa w tej samej apce, w trybie jasnym i ciemnym.
