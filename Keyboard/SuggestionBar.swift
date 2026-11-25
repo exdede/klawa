@@ -8,6 +8,8 @@ final class SuggestionBar: UIView {
     var onCloseSearch: (() -> Void)?
     var onClipboard: (() -> Void)?
     var onSnippets: (() -> Void)?
+    var onTranslate: (() -> Void)?
+    var onTranslationTap: (() -> Void)?
 
     private let slots = UIStackView()
     private let slotRow = UIStackView()
@@ -21,6 +23,9 @@ final class SuggestionBar: UIView {
     private let queryLabel = UILabel()
     private let results = UIScrollView()
     private let resultsStack = UIStackView()
+    private let translateRow = UIStackView()
+    private let translateSource = UILabel()
+    private let translateResult = UILabel()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -29,6 +34,7 @@ final class SuggestionBar: UIView {
         slots.spacing = 4
         slotRow.addArrangedSubview(icon("clipboard") { [weak self] in self?.onClipboard?() })
         slotRow.addArrangedSubview(icon("text.bubble") { [weak self] in self?.onSnippets?() })
+        slotRow.addArrangedSubview(icon("translate") { [weak self] in self?.onTranslate?() })
         slotRow.addArrangedSubview(slots)
         for _ in 0..<3 {
             let l = UILabel()
@@ -58,7 +64,23 @@ final class SuggestionBar: UIView {
         [queryLabel, results, close].forEach { search.addArrangedSubview($0) }
         search.isHidden = true
 
-        for v in [slotRow, search] as [UIView] {
+        translateSource.font = .systemFont(ofSize: 12)
+        translateSource.textColor = .secondaryLabel
+        translateSource.lineBreakMode = .byTruncatingHead
+        translateResult.font = .systemFont(ofSize: 16)
+        translateResult.lineBreakMode = .byTruncatingHead
+        let texts = UIStackView(arrangedSubviews: [translateSource, translateResult])
+        texts.axis = .vertical
+        let closeTranslate = UIButton(type: .system)
+        closeTranslate.setImage(UIImage(systemName: "xmark.circle.fill"), for: .normal)
+        closeTranslate.tintColor = .secondaryLabel
+        closeTranslate.widthAnchor.constraint(equalToConstant: 40).isActive = true
+        closeTranslate.addAction(UIAction { [weak self] _ in self?.onCloseSearch?() }, for: .touchUpInside)
+        translateRow.spacing = 6
+        [texts, closeTranslate].forEach { translateRow.addArrangedSubview($0) }
+        translateRow.isHidden = true
+
+        for v in [slotRow, search, translateRow] as [UIView] {
             v.translatesAutoresizingMaskIntoConstraints = false
             addSubview(v)
             NSLayoutConstraint.activate([
@@ -103,6 +125,7 @@ final class SuggestionBar: UIView {
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if !translateRow.isHidden { return onTranslationTap?() ?? () }
         let picked = pressedSlot
         pressedSlot = nil
         paint()
@@ -126,14 +149,26 @@ final class SuggestionBar: UIView {
     func show(_ texts: [String?], highlighted: Int?) {
         slotRow.isHidden = false
         search.isHidden = true
+        translateRow.isHidden = true
         self.texts = (0..<3).map { $0 < texts.count ? texts[$0] : nil }
         self.highlighted = highlighted
         for (l, text) in zip(slotLabels, self.texts) { l.text = text }
         paint()
     }
 
+    /// Translator: what is typed (small) and its translation; tapping the bar inserts the translation.
+    func showTranslate(direction: String, query: String, result: String) {
+        slotRow.isHidden = true
+        search.isHidden = true
+        translateRow.isHidden = false
+        translateSource.text = direction + "  " + query + "▏"
+        translateResult.text = result.isEmpty ? "Pisz, tłumaczenie pojawi się tutaj" : result
+        translateResult.textColor = result.isEmpty ? .tertiaryLabel : .label
+    }
+
     func showSearch(query: String, emoji: [String]) {
         slotRow.isHidden = true
+        translateRow.isHidden = true
         search.isHidden = false
         queryLabel.text = "🔍 " + query + "▏"
         resultsStack.arrangedSubviews.forEach { $0.removeFromSuperview() }

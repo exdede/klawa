@@ -24,6 +24,26 @@ public struct UserWords: Codable, Equatable {
     }
 }
 
+/// Likely next words from subtitles (scripts/gen-next.py); `<s>` = start of a sentence.
+public struct NextWords {
+    private var table: [LanguageMode: [String: [String]]] = [.pl: [:], .en: [:]]
+
+    /// Parses `p|e<TAB>previous<TAB>next next ...` lines.
+    public init(text: String) {
+        for line in text.split(separator: "\n") {
+            let parts = line.split(separator: "\t")
+            guard parts.count == 3 else { continue }
+            table[parts[0] == "e" ? .en : .pl]![String(parts[1])] = parts[2].split(separator: " ").map(String.init)
+        }
+    }
+
+    /// After `previous` (nil = sentence start), the typing language first.
+    public func after(_ previous: String?, language: LanguageMode) -> [String] {
+        let key = previous?.lowercased() ?? "<s>"
+        return (table[language]?[key] ?? []) + (table[language.next]?[key] ?? [])
+    }
+}
+
 public struct Suggestions: Equatable {
     /// Best first, never the typed word itself.
     public var words: [String] = []
@@ -39,6 +59,7 @@ public struct Suggestions: Equatable {
 public struct Suggester {
     public let lexicon: Lexicon
     public var neighbors: [Character: Set<Character>]
+    public var next: NextWords?
 
     public init(lexicon: Lexicon, layout: LayoutName) {
         self.lexicon = lexicon
@@ -50,10 +71,16 @@ public struct Suggester {
     /// `custom`: the owner's own words with exact capitals (names); always known, suggested first.
     public func suggest(typed: String, previous: String?, language: LanguageMode, user: UserWords,
                         custom: [String] = []) -> Suggestions {
+        let learnedNext = previous.flatMap { user.next[$0.lowercased()] } ?? [:]
+        let corpusNext = next?.after(previous, language: language) ?? []
         guard !typed.isEmpty else {
-            let next = previous.flatMap { user.next[$0.lowercased()] } ?? [:]
-            return Suggestions(words: next.sorted { $0.value > $1.value }.prefix(3).map(\.key))
+            var words = learnedNext.sorted { $0.value > $1.value }.prefix(3).map(\.key)
+            for w in corpusNext where words.count < 3 && !words.contains(where: { $0.lowercased() == w.lowercased() }) {
+                words.append(w)
+            }
+            return Suggestions(words: words)
         }
+        let likelyHere = Set(corpusNext).union(learnedNext.keys)
         let lower = typed.lowercased()
         let key = Lexicon.fold(typed)
         let typedHasPolish = lower != key && lower.contains { "ąćęłńóśźż".contains($0) }
@@ -65,6 +92,7 @@ public struct Suggester {
         func base(_ e: Lexicon.Entry) -> Float {
             let used = Float(user.counts[e.word.lowercased()] ?? 0)
             return e.logp + (e.language == language ? 0 : -1.1) + 0.7 * log(1 + used)
+                + (likelyHere.contains(e.word) || likelyHere.contains(e.word.lowercased()) ? 2 : 0) // fits after the previous word
         }
 
         // same keys typed (any Polish letters) or a longer word starting with them

@@ -78,6 +78,19 @@ final class SuggestTests: XCTestCase {
         XCTAssertEqual(s("Klaws").autocorrect, "Klawa")
     }
 
+    func testCorpusNextWords() {
+        var s = self.s
+        s.next = NextWords(text: "p\tdzień\tdobry w\np\t<s>\tnie to\ne\t<s>\tI you\n")
+        XCTAssertEqual(s.suggest(typed: "", previous: "Dzień", language: .pl, user: UserWords()).words, ["dobry", "w"])
+        XCTAssertEqual(s.suggest(typed: "", previous: nil, language: .pl, user: UserWords()).words, ["nie", "to", "I"])
+        var user = UserWords()
+        user.learn("dzięki", after: "dzień")
+        XCTAssertEqual(s.suggest(typed: "", previous: "dzień", language: .pl, user: user).words, ["dzięki", "dobry", "w"])
+        // completions that fit after the previous word rank higher
+        s.next = NextWords(text: "p\tbardzo\tdziękuję\n")
+        XCTAssertEqual(s.suggest(typed: "dzię", previous: "bardzo", language: .pl, user: UserWords()).words.first, "dziękuję")
+    }
+
     func testNextLetterMass() {
         let m = Self.lexicon.nextLetterMass(prefix: "dzi", letters: ["e", "x"], weights: [.pl: 1, .en: 0.5])!
         XCTAssertGreaterThan(m[0], 0)

@@ -1,5 +1,6 @@
 import SwiftUI
 import KlawaCore
+import Translation
 
 @main
 struct KlawaApp: App {
@@ -40,6 +41,15 @@ struct ContentView: View {
                     NavigationLink("Moje słowa") { CustomWordsView() }
                 } footer: {
                     Text("Szybkie teksty: maile, strony i inne w kategoriach (ikona dymka obok schowka). Moje słowa: imiona i nazwy, które klawiatura ma znać.")
+                }
+                Section {
+                    if #available(iOS 18.0, *) {
+                        TranslationDownload()
+                    }
+                } header: {
+                    Text("Tłumacz")
+                } footer: {
+                    Text("Tłumaczy na telefonie, bez internetu. W klawiaturze: ikona tłumacza w pasku, kierunek zmienia klawisz PL/EN, stuknięcie w tłumaczenie albo return je wstawia.")
                 }
                 Section("Status") {
                     LabeledContent("Wspólny folder", value: AppGroup.containerURL == nil ? "BRAK" : "ok")
@@ -144,5 +154,32 @@ struct CustomWordsView: View {
         }
         .navigationTitle("Moje słowa")
         .onChange(of: words) { _, new in CustomWords.save(new) }
+    }
+}
+
+/// Asks iOS to download Polish and English for on-device translation (the keyboard cannot show that prompt).
+@available(iOS 18.0, *)
+struct TranslationDownload: View {
+    @State private var config: TranslationSession.Configuration?
+    @State private var status = ""
+    private let pl = Locale.Language(identifier: "pl")
+    private let en = Locale.Language(identifier: "en")
+
+    var body: some View {
+        Button("Pobierz polski i angielski") {
+            if config == nil { config = .init(source: pl, target: en) } else { config?.invalidate() }
+        }
+        .translationTask(config) { session in
+            do {
+                try await session.prepareTranslation()
+                status = "Języki pobrane, tłumacz gotowy."
+            } catch {
+                status = "Nie udało się: \(error.localizedDescription)"
+            }
+        }
+        .task {
+            if await LanguageAvailability().status(from: pl, to: en) == .installed { status = "Języki pobrane, tłumacz gotowy." }
+        }
+        if !status.isEmpty { Text(status).foregroundStyle(.secondary) }
     }
 }

@@ -32,6 +32,7 @@ final class KeyboardViewController: UIInputViewController {
 
     /// Loaded once per keyboard process, off the main thread.
     private static var lexicon: Lexicon?
+    private static var nextWords: NextWords?
     private static var lexiconLoading = false
     private static let emojiSearch = EmojiSearch(text: Bundle.main.url(forResource: "emoji-keywords", withExtension: "txt")
         .flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? "")
@@ -42,8 +43,13 @@ final class KeyboardViewController: UIInputViewController {
     private enum SlotAction { case word(String), keepTyped(String), math(String), paste(String), emoji(String) }
     private var slotActions: [SlotAction?] = []
     private var lastCorrection: (original: String, corrected: String)?
-    /// Non-nil while typing an emoji search; keys then edit the query, not the document.
-    private var searchQuery: String?
+    /// Emoji search or translator: keys then type into the bar, not the document.
+    private enum BarMode { case emojiSearch, translate }
+    private var barMode: BarMode?
+    private var barText = ""
+    private var translation = ""
+    private var translationFailed = false
+    private let translator = Translator()
     private var suggestionsScheduled = false
 
     override func loadView() {
@@ -85,6 +91,11 @@ final class KeyboardViewController: UIInputViewController {
         bar.onCloseSearch = { [weak self] in self?.closeSearch() }
         bar.onClipboard = { [weak self] in self?.showClipboard() }
         bar.onSnippets = { [weak self] in self?.showSnippets() }
+        bar.onTranslate = { [weak self] in self?.openTranslate() }
+        bar.onTranslationTap = { [weak self] in
+            self?.insertTranslation()
+            self?.closeSearch()
+        }
         if let data = UserDefaults.standard.data(forKey: Self.clipboardKey),
            let saved = try? JSONDecoder().decode(ClipboardHistory.self, from: data) {
             clipboard = saved
@@ -105,7 +116,7 @@ final class KeyboardViewController: UIInputViewController {
         loadSettings()
         loadLexicon()
         hideEmoji()
-        searchQuery = nil
+        barMode = nil
         lastCorrection = nil
         clipboard.expire(now: Date())
         captureClipboard()
@@ -150,6 +161,7 @@ final class KeyboardViewController: UIInputViewController {
             if suggester == nil || suggester?.neighbors != letterNeighbors(layoutName) {
                 suggester = Suggester(lexicon: lexicon, layout: layoutName)
             }
+            suggester?.next = Self.nextWords
             return
         }
         guard !Self.lexiconLoading else { return }
@@ -159,8 +171,12 @@ final class KeyboardViewController: UIInputViewController {
                 .flatMap { try? String(contentsOf: $0, encoding: .utf8) }
                 .map(Lexicon.init(text:))
             _ = KeyboardViewController.emojiSearch // parse it here too, not on the first keystroke
+            let next = Bundle.main.url(forResource: "next", withExtension: "txt")
+                .flatMap { try? String(contentsOf: $0, encoding: .utf8) }
+                .map(NextWords.init(text:))
             DispatchQueue.main.async { [weak self] in
                 KeyboardViewController.lexicon = lexicon
+                KeyboardViewController.nextWords = next
                 KeyboardViewController.lexiconLoading = false
                 guard let self, lexicon != nil else { return }
                 self.loadLexicon()
@@ -240,9 +256,14 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func updateSuggestions() {
-        if let q = searchQuery {
-            bar.showSearch(query: q, emoji: Self.emojiSearch.search(q))
-            return
+        switch barMode {
+        case .emojiSearch?:
+            return bar.showSearch(query: barText, emoji: Self.emojiSearch.search(barText))
+        case .translate?:
+            let result = translationFailed ? "Pobierz polski i angielski: apka Klawa → Tłumacz" : translation
+            return bar.showTranslate(direction: languageMode == .pl ? "PL → EN" : "EN → PL", query: barText, result: result)
+        case nil:
+            break
         }
         let before = textDocumentProxy.documentContextBeforeInput
         if let math = MathEval.result(contextBefore: before) {
@@ -336,8 +357,9 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func letterOdds(_ letters: [String]) -> [Double]? {
-        guard searchQuery == nil, plainText, let lexicon = Self.lexicon else { return nil }
-        let prefix = Lexicon.fold(TextOps.currentWord(contextBefore: textDocumentProxy.documentContextBeforeInput))
+        guard barMode != .emojiSearch, barMode == .translate || plainText, let lexicon = Self.lexicon else { return nil }
+        let context = barMode == .translate ? barText : textDocumentProxy.documentContextBeforeInput
+        let prefix = Lexicon.fold(TextOps.currentWord(contextBefore: context))
         let weights: [LanguageMode: Double] = languageMode == .pl ? [.pl: 1, .en: 0.4] : [.en: 1, .pl: 0.4]
         return lexicon.nextLetterMass(prefix: prefix, letters: letters, weights: weights)
     }
@@ -365,10 +387,12 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func insert(_ text: String) {
-        if searchQuery != nil {
-            searchQuery! += text.lowercased()
-            scheduleSuggestions()
-            return
+        if barMode != nil {
+            barText += barMode == .emojiSearch ? text.lowercased() : text
+            let before = state.shift
+            state.typedCharacter()
+            if state.shift != before { refresh() }
+            return barTextChanged()
         }
         lastCorrection = nil
         freshClip = nil // typing on: the paste offer goes away
@@ -382,10 +406,12 @@ final class KeyboardViewController: UIInputViewController {
 
     private func handle(_ kind: KeyKind) {
         switch kind {
-        case .space where searchQuery != nil:
-            searchQuery! += " "
-        case .returnKey where searchQuery != nil:
-            searchQuery = nil
+        case .space where barMode != nil:
+            barText += " "
+            barTextChanged()
+        case .returnKey where barMode != nil:
+            if barMode == .translate { insertTranslation() }
+            barMode = nil
         case .space:
             let now = CACurrentMediaTime()
             if TextOps.shouldInsertPeriod(contextBefore: textDocumentProxy.documentContextBeforeInput, lastSpaceAt: lastSpaceAt, now: now) {
@@ -419,8 +445,9 @@ final class KeyboardViewController: UIInputViewController {
             languageMode = languageMode.next
             AppGroup.defaults?.set(languageMode.rawValue, forKey: SettingsKey.languageMode)
             applyLanguage()
+            if barMode == .translate { barTextChanged() } // language key flips the direction
         case .emoji:
-            searchQuery = nil
+            barMode = nil
             showEmoji()
             return
         case .character, .backspace, .globe:
@@ -431,10 +458,13 @@ final class KeyboardViewController: UIInputViewController {
 
     private func backspace(_ unit: BackspaceUnit) {
         lastSpaceAt = nil
-        if searchQuery != nil {
-            if !searchQuery!.isEmpty { searchQuery!.removeLast() }
-            scheduleSuggestions()
-            return
+        if barMode != nil {
+            if unit == .word {
+                barText.removeLast(min(barText.count, TextOps.wordDeleteCount(contextBefore: barText)))
+            } else if !barText.isEmpty {
+                barText.removeLast()
+            }
+            return barTextChanged()
         }
         // right after an autocorrection: put back what was typed
         if unit == .character, let c = lastCorrection,
@@ -486,14 +516,51 @@ final class KeyboardViewController: UIInputViewController {
 
     private func openSearch() {
         hideEmoji()
-        searchQuery = ""
+        barMode = .emojiSearch
+        barText = ""
         state.page = .letters
         refresh()
     }
 
     private func closeSearch() {
-        searchQuery = nil
+        barMode = nil
         refresh()
+    }
+
+    // MARK: translator
+
+    private func openTranslate() {
+        hideEmoji()
+        barMode = .translate
+        barText = ""
+        translation = ""
+        translationFailed = false
+        state.page = .letters
+        refresh()
+    }
+
+    private func barTextChanged() {
+        if barMode == .translate {
+            translator.translate(barText, from: languageMode) { [weak self] result in
+                guard let self, self.barMode == .translate else { return }
+                switch result {
+                case .success(let text):
+                    self.translation = text
+                    self.translationFailed = false
+                case .failure:
+                    self.translation = ""
+                    self.translationFailed = true
+                }
+                self.scheduleSuggestions()
+            }
+        }
+        scheduleSuggestions()
+    }
+
+    private func insertTranslation() {
+        guard !translation.isEmpty else { return }
+        press()
+        textDocumentProxy.insertText(translation)
     }
 
     // MARK: clipboard
@@ -521,7 +588,7 @@ final class KeyboardViewController: UIInputViewController {
 
     private func showClipboard() {
         hideEmoji()
-        searchQuery = nil
+        barMode = nil
         clipboard.expire(now: Date())
         let panel = ClipboardPanel(history: clipboard, fullAccess: hasFullAccess)
         panel.onPaste = { [weak self] text in
@@ -544,7 +611,7 @@ final class KeyboardViewController: UIInputViewController {
 
     private func showSnippets() {
         hideEmoji()
-        searchQuery = nil
+        barMode = nil
         let panel = SnippetsPanel(fullAccess: hasFullAccess)
         panel.onInsert = { [weak self] text in
             self?.press()
