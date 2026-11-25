@@ -37,8 +37,9 @@ struct ContentView: View {
                 }
                 Section {
                     NavigationLink("Szybkie teksty") { SnippetsView() }
+                    NavigationLink("Moje słowa") { CustomWordsView() }
                 } footer: {
-                    Text("Maile, strony i inne teksty w kategoriach. W klawiaturze: ikona dymka obok schowka.")
+                    Text("Szybkie teksty: maile, strony i inne w kategoriach (ikona dymka obok schowka). Moje słowa: imiona i nazwy, które klawiatura ma znać.")
                 }
                 Section("Status") {
                     LabeledContent("Wspólny folder", value: AppGroup.containerURL == nil ? "BRAK" : "ok")
@@ -114,5 +115,34 @@ struct CategoryView: View {
         }
         .navigationTitle(category.name)
         .toolbar { EditButton() }
+    }
+}
+
+struct CustomWordsView: View {
+    @State private var words = CustomWords.load()
+    @State private var newWord = ""
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(words, id: \.self) { Text($0) }
+                    .onDelete { words.remove(atOffsets: $0) }
+                HStack {
+                    TextField("Np. imię, z wielką literą", text: $newWord)
+                        .autocorrectionDisabled()
+                    Button("Dodaj") {
+                        let w = newWord.trimmingCharacters(in: .whitespaces)
+                        if !words.contains(w) { words.append(w) }
+                        newWord = ""
+                    }
+                    .disabled(newWord.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            } footer: {
+                Text("Klawiatura podpowiada te słowa, poprawia na nie literówki i wielką literę, i nigdy ich nie zmienia. "
+                     + "Dyktowania Apple klawiatura nie zmieni; imię lepiej rozpoznaje, gdy jest w twojej wizytówce w Kontaktach.")
+            }
+        }
+        .navigationTitle("Moje słowa")
+        .onChange(of: words) { _, new in CustomWords.save(new) }
     }
 }

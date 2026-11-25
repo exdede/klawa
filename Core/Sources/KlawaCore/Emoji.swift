@@ -29,6 +29,7 @@ public enum EmojiCatalog {
 /// Finds emoji by Polish or English words (CLDR keywords, see scripts/gen-emoji.py).
 public struct EmojiSearch {
     private let items: [(emoji: String, keywords: [String])]
+    private let byKeyword: [String: [String]]
 
     /// Parses `emoji<TAB>keyword|keyword...` lines (keywords already folded).
     public init(text: String) {
@@ -37,6 +38,16 @@ public struct EmojiSearch {
             guard parts.count == 2 else { return nil }
             return (String(parts[0]), parts[1].split(separator: "|").map(String.init))
         }
+        var byKeyword: [String: [String]] = [:]
+        for item in items {
+            for k in item.keywords { byKeyword[k, default: []].append(item.emoji) }
+        }
+        self.byKeyword = byKeyword
+    }
+
+    /// Emoji whose keyword is exactly this word ("kot" -> 🐱 🐈), for the suggestion bar.
+    public func exact(_ word: String) -> [String] {
+        byKeyword[Lexicon.fold(word)] ?? []
     }
 
     /// Every query word must start a keyword word ("czer ser" finds ❤️). Exact keyword first.

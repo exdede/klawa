@@ -69,6 +69,15 @@ final class SuggestTests: XCTestCase {
         XCTAssertEqual(s.suggest(typed: "", previous: "Mój", language: .pl, user: user).words, ["pies"])
     }
 
+    func testOwnWords() {
+        let own = ["Klawa"]
+        func s(_ t: String) -> Suggestions { self.s.suggest(typed: t, previous: nil, language: .pl, user: UserWords(), custom: own) }
+        XCTAssertEqual(s("klawa").autocorrect, "Klawa")
+        XCTAssertNil(s("Klawa").autocorrect)
+        XCTAssertEqual(s("Kla").words.first, "Klawa")
+        XCTAssertEqual(s("Klaws").autocorrect, "Klawa")
+    }
+
     func testNextLetterMass() {
         let m = Self.lexicon.nextLetterMass(prefix: "dzi", letters: ["e", "x"], weights: [.pl: 1, .en: 0.5])!
         XCTAssertGreaterThan(m[0], 0)

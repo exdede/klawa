@@ -31,4 +31,10 @@ final class EmojiSearchTests: XCTestCase {
         XCTAssertEqual(search.search(" "), [])
         XCTAssertEqual(search.search("xyz"), [])
     }
+
+    func testExactWord() {
+        XCTAssertEqual(search.exact("Kot"), ["🐱", "🐈"])
+        XCTAssertEqual(search.exact("miłość"), ["❤️"])
+        XCTAssertEqual(search.exact("ko"), [])
+    }
 }

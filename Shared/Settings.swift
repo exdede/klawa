@@ -6,4 +6,11 @@ enum SettingsKey {
     static let autocorrect = "autocorrect"
     static let snippets = "snippets"
     static let keyPopup = "keyPopup"
+    static let customWords = "customWords"
+}
+
+/// The owner's own words (names) with exact capitals: suggested, never autocorrected away.
+enum CustomWords {
+    static func load() -> [String] { AppGroup.defaults?.stringArray(forKey: SettingsKey.customWords) ?? [] }
+    static func save(_ words: [String]) { AppGroup.defaults?.set(words, forKey: SettingsKey.customWords) }
 }

@@ -22,6 +22,7 @@ final class KeyboardViewController: UIInputViewController {
     private var layoutName = LayoutName.qwerty
     private var haptics = true
     private var autocorrect = true
+    private var customWords: [String] = []
     private var languageMode = LanguageMode.pl
     private var lastSpaceAt: TimeInterval?
     private var lastKeyboardType: UIKeyboardType?
@@ -38,7 +39,7 @@ final class KeyboardViewController: UIInputViewController {
     /// Learned words; stays in the keyboard's own container, never leaves the phone.
     private var userWords = UserWords()
     private var unsavedWords = 0
-    private enum SlotAction { case word(String), keepTyped(String), math(String), paste(String) }
+    private enum SlotAction { case word(String), keepTyped(String), math(String), paste(String), emoji(String) }
     private var slotActions: [SlotAction?] = []
     private var lastCorrection: (original: String, corrected: String)?
     /// Non-nil while typing an emoji search; keys then edit the query, not the document.
@@ -134,6 +135,7 @@ final class KeyboardViewController: UIInputViewController {
         haptics = d?.object(forKey: SettingsKey.haptics) as? Bool ?? true
         autocorrect = d?.object(forKey: SettingsKey.autocorrect) as? Bool ?? true
         keyboard.showsBubble = d?.bool(forKey: SettingsKey.keyPopup) ?? false
+        customWords = CustomWords.load()
         languageMode = d?.string(forKey: SettingsKey.languageMode).flatMap(LanguageMode.init(rawValue:)) ?? .pl
         applyLanguage()
     }
@@ -156,6 +158,7 @@ final class KeyboardViewController: UIInputViewController {
             let lexicon = Bundle.main.url(forResource: "words", withExtension: "txt")
                 .flatMap { try? String(contentsOf: $0, encoding: .utf8) }
                 .map(Lexicon.init(text:))
+            _ = KeyboardViewController.emojiSearch // parse it here too, not on the first keystroke
             DispatchQueue.main.async { [weak self] in
                 KeyboardViewController.lexicon = lexicon
                 KeyboardViewController.lexiconLoading = false
@@ -259,20 +262,25 @@ final class KeyboardViewController: UIInputViewController {
             bar.show([extracted.first, "📋 " + clip.trimmingCharacters(in: .whitespacesAndNewlines), extracted.dropFirst().first], highlighted: nil)
             return
         }
-        let s = suggester.suggest(typed: typed, previous: TextOps.previousWord(contextBefore: before),
-                                  language: languageMode, user: userWords)
+        let previous = TextOps.previousWord(contextBefore: before)
+        let s = suggester.suggest(typed: typed, previous: previous, language: languageMode, user: userWords, custom: customWords)
         let fix = autocorrect && plainText ? s.autocorrect : nil
         let w = s.words
         if typed.isEmpty {
             slotActions = [w.count > 1 ? .word(w[1]) : nil, w.first.map { SlotAction.word($0) }, w.count > 2 ? .word(w[2]) : nil]
+            // emoji for the word just finished goes after it: "pizza " -> 🍕
+            if let e = previous.flatMap({ Self.emojiSearch.exact($0).first }) { slotActions[0] = .emoji(e) }
         } else {
             let middle = fix ?? w.first
             slotActions = [.keepTyped(typed), middle.map { SlotAction.word($0) }, w.first { $0 != middle }.map { SlotAction.word($0) }]
+            // emoji for the word being typed replaces it, like iOS
+            if let e = Self.emojiSearch.exact(typed).first { slotActions[2] = .emoji(e) }
         }
         bar.show(slotActions.map { action -> String? in
             switch action {
             case .word(let w)?: return w
             case .keepTyped(let t)?: return "“\(t)”"
+            case .emoji(let e)?: return e
             case .math?, .paste?, nil: return nil
             }
         }, highlighted: fix != nil ? 1 : nil)
@@ -292,6 +300,11 @@ final class KeyboardViewController: UIInputViewController {
         case .paste(let s):
             textDocumentProxy.insertText(s)
             freshClip = nil
+        case .emoji(let e):
+            for _ in typed { textDocumentProxy.deleteBackward() }
+            textDocumentProxy.insertText(e + " ")
+            let recents = UserDefaults.standard.stringArray(forKey: Self.recentsKey) ?? []
+            UserDefaults.standard.set(EmojiCatalog.addRecent(e, to: recents), forKey: Self.recentsKey)
         case .keepTyped(let t):
             textDocumentProxy.insertText(" ")
             learn(t, after: previous, times: 2) // chosen as typed: never autocorrect it again
@@ -312,7 +325,8 @@ final class KeyboardViewController: UIInputViewController {
         let previous = TextOps.previousWord(contextBefore: before)
         var word = typed
         if autocorrect, plainText, let suggester,
-           let fix = suggester.suggest(typed: typed, previous: previous, language: languageMode, user: userWords).autocorrect {
+           let fix = suggester.suggest(typed: typed, previous: previous, language: languageMode, user: userWords,
+                                       custom: customWords).autocorrect {
             for _ in typed { textDocumentProxy.deleteBackward() }
             textDocumentProxy.insertText(fix)
             lastCorrection = (typed, fix)

@@ -47,7 +47,9 @@ public struct Suggester {
 
     private static let alphabet = Array("abcdefghijklmnopqrstuvwxyz")
 
-    public func suggest(typed: String, previous: String?, language: LanguageMode, user: UserWords) -> Suggestions {
+    /// `custom`: the owner's own words with exact capitals (names); always known, suggested first.
+    public func suggest(typed: String, previous: String?, language: LanguageMode, user: UserWords,
+                        custom: [String] = []) -> Suggestions {
         guard !typed.isEmpty else {
             let next = previous.flatMap { user.next[$0.lowercased()] } ?? [:]
             return Suggestions(words: next.sorted { $0.value > $1.value }.prefix(3).map(\.key))
@@ -78,10 +80,18 @@ public struct Suggester {
                 }
             }
         }
+        // the owner's own words rank like very common words
+        var customByFold: [String: String] = [:]
+        for c in custom {
+            let f = Lexicon.fold(c)
+            customByFold[f] = c
+            if f.hasPrefix(key) { add(c, f.count == key.count ? -5 : -6, correction: f.count == key.count) }
+        }
         // one typo away (missing, extra, swapped or wrong letter)
         if key.count >= 2 {
             for (edit, cost) in edits(of: key) {
                 for e in lexicon.exact(edit) { add(e.word, base(e) - cost, correction: key.count >= 3) }
+                if let c = customByFold[edit] { add(c, -5 - cost, correction: key.count >= 3) }
             }
         }
         // words the owner taught the keyboard
@@ -93,7 +103,7 @@ public struct Suggester {
         best[lower] = nil
         let ranked = best.sorted { $0.value.score > $1.value.score || ($0.value.score == $1.value.score && $0.key < $1.key) }
         var result = Suggestions(words: ranked.prefix(3).map { Self.matchCase($0.key, typed) })
-        result.autocorrect = autocorrection(typed: typed, lower: lower, language: language, user: user,
+        result.autocorrect = autocorrection(typed: typed, lower: lower, language: language, user: user, custom: custom,
                                             top: ranked.first { $0.value.correction && $0.value.score > -17 }?.key)
         if let a = result.autocorrect, let i = result.words.firstIndex(of: a), i > 0 {
             result.words.remove(at: i)
@@ -104,8 +114,10 @@ public struct Suggester {
         return result
     }
 
-    private func autocorrection(typed: String, lower: String, language: LanguageMode, user: UserWords, top: String?) -> String? {
+    private func autocorrection(typed: String, lower: String, language: LanguageMode, user: UserWords,
+                                custom: [String], top: String?) -> String? {
         guard typed.dropFirst().allSatisfy({ !$0.isUppercase }) else { return nil } // CAPS = on purpose
+        if let own = custom.first(where: { $0.lowercased() == lower }) { return own == typed ? nil : own } // "ewa" -> "Ewa"
         if lexicon.contains(typed) || user.knows(typed) {
             // English "i" -> "I" style case fixes only when typing English
             guard language == .en, lower == typed,
