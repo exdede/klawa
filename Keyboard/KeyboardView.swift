@@ -12,6 +12,9 @@ final class KeyboardView: UIView {
     var onCursorMove: ((Int) -> Void)?
     var onGlobe: ((UIView, UIEvent) -> Void)?
     var onPress: (() -> Void)?
+    /// How likely each lowercase letter is to come next (nil = no idea): makes likely keys
+    /// invisibly bigger, like the iOS keyboard.
+    var letterOdds: (([String]) -> [Double]?)?
     /// Popups are added here; it must contain this view and the space above it.
     weak var popupHost: UIView?
 
@@ -98,6 +101,31 @@ final class KeyboardView: UIView {
         return range.min { distance(p.x, keyViews[$0].frame) < distance(p.x, keyViews[$1].frame) }
     }
 
+    /// Touches a little above the top row (on the suggestion bar's edge) still type.
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        bounds.inset(by: UIEdgeInsets(top: -6, left: 0, bottom: 0, right: 0)).contains(point)
+    }
+
+    private func letter(_ i: Int) -> String? {
+        guard case .character(let s) = keys[i].kind, s.count == 1, s.first!.isLetter else { return nil }
+        return s
+    }
+
+    /// Among letter keys around the touch, the one the owner most likely meant.
+    private func likelyKey(at p: CGPoint, nearest i: Int) -> Int {
+        guard letter(i) != nil, let letterOdds else { return i }
+        let pitchX = keyViews[i].frame.width + KeyStyle.keyGap
+        let pitchY = KeyStyle.keyHeight + KeyStyle.rowGap
+        let near = keys.indices.filter { j in
+            letter(j) != nil && abs(keyViews[j].frame.midX - p.x) < 1.5 * pitchX && abs(keyViews[j].frame.midY - p.y) < 1.5 * pitchY
+        }
+        guard near.count > 1, let masses = letterOdds(near.map { letter($0)! }) else { return i }
+        let offsets = near.map { j in
+            (dx: Double((p.x - keyViews[j].frame.midX) / pitchX), dy: Double((p.y - keyViews[j].frame.midY) / pitchY))
+        }
+        return near[TouchModel.pick(offsets: offsets, masses: masses)]
+    }
+
     private func distance(_ x: CGFloat, _ f: CGRect) -> CGFloat {
         x < f.minX ? f.minX - x : (x > f.maxX ? x - f.maxX : 0)
     }
@@ -109,9 +137,9 @@ final class KeyboardView: UIView {
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             let p = touch.location(in: self)
-            guard let i = keyIndex(at: p) else { continue }
+            guard let nearest = keyIndex(at: p) else { continue }
             commitPendingCharacters() // fast typing: the earlier finger's letter goes first
-            let t = Track(keyIndex: i, point: p)
+            let t = Track(keyIndex: likelyKey(at: p, nearest: nearest), point: p)
             tracks[ObjectIdentifier(touch)] = t
             onPress?()
             begin(t, event: event)

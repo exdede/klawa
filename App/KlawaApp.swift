@@ -11,6 +11,7 @@ struct KlawaApp: App {
 struct ContentView: View {
     @AppStorage(SettingsKey.layout, store: AppGroup.defaults) private var layout = LayoutName.qwerty
     @AppStorage(SettingsKey.haptics, store: AppGroup.defaults) private var haptics = true
+    @AppStorage(SettingsKey.autocorrect, store: AppGroup.defaults) private var autocorrect = true
 
     var body: some View {
         NavigationStack {
@@ -26,6 +27,7 @@ struct ContentView: View {
                         Text("Colemak").tag(LayoutName.colemak)
                     }
                     Toggle("Wibracje", isOn: $haptics)
+                    Toggle("Autokorekta", isOn: $autocorrect)
                 } header: {
                     Text("Ustawienia")
                 } footer: {

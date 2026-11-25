@@ -6,6 +6,7 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
     var onEmoji: ((String) -> Void)?
     var onClose: (() -> Void)?
     var onBackspace: (() -> Void)?
+    var onSearch: (() -> Void)?
 
     static let catalog: [EmojiGroup] = {
         guard let url = Bundle.main.url(forResource: "emoji", withExtension: "txt"),
@@ -39,6 +40,7 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
         let bar = UIStackView()
         bar.distribution = .fillEqually
         bar.addArrangedSubview(button(title: "ABC") { [weak self] in self?.onClose?() })
+        bar.addArrangedSubview(button(symbol: "magnifyingglass") { [weak self] in self?.onSearch?() })
         for (i, group) in groups.enumerated() {
             bar.addArrangedSubview(button(title: Self.symbols[group.name] ?? "•") { [weak self] in self?.jump(to: i) })
         }

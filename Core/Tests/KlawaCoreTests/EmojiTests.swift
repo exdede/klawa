@@ -14,3 +14,21 @@ final class EmojiTests: XCTestCase {
         XCTAssertEqual(EmojiCatalog.addRecent("❤️", to: ["a", "b", "c"], limit: 3), ["❤️", "a", "b"])
     }
 }
+
+final class EmojiSearchTests: XCTestCase {
+    let search = EmojiSearch(text: """
+    ❤️\tczerwone|kocham|milosc|serce|czerwone serce|heart|love
+    🐱\tkot|kotek|glowa kota|cat|cat face
+    🐈\tkot|zwierze|cat
+    🍕\tpizza|jedzenie|food
+    """)
+
+    func testSearch() {
+        XCTAssertEqual(search.search("kot"), ["🐱", "🐈"])
+        XCTAssertEqual(search.search("Miłość"), ["❤️"])
+        XCTAssertEqual(search.search("czer ser"), ["❤️"])
+        XCTAssertEqual(search.search("cat f"), ["🐱"])
+        XCTAssertEqual(search.search(" "), [])
+        XCTAssertEqual(search.search("xyz"), [])
+    }
+}
