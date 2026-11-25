@@ -61,3 +61,18 @@ Można to zautomatyzować: Skróty → Automatyzacja → codziennie o stałej po
 ## Nowa wersja Klawy
 
 Link z punktu 9 zawsze prowadzi do najnowszego buildu. Pobierz go i zainstaluj przez SideStore, nadpisując starą wersję.
+
+## Test etapu 1 (napisz, co nie działa albo co ci przeszkadza)
+
+- [ ] Szybkie pisanie dwoma kciukami: nie gubi liter, kolejność się zgadza.
+- [ ] Przytrzymanie: `e` daje 3 ę é…, `a` daje ą…, `.` daje interpunkcję. Przesuń palec, puść i wstawi się wybrany znak. Także przy lewej i prawej krawędzi.
+- [ ] Shift raz = jedna wielka litera. Dwa szybkie stuknięcia = caps lock (ikona z kreską).
+- [ ] Backspace przytrzymany: najpierw litery, po ~1,5 s całe słowa (też emoji na końcu tekstu).
+- [ ] Spacja przytrzymana albo przesunięta w bok przesuwa kursor, także przez emoji i polskie litery.
+- [ ] Dwie szybkie spacje po słowie dają `. `, ale po `?` czy `!` nie.
+- [ ] `123` i `#+=`: cyfry i symbole, spacja wraca do liter.
+- [ ] 😊 otwiera emoji, ostatnio użyte są na górze, `ABC` wraca.
+- [ ] Pole e-mail ma `@`, pole adresu WWW ma `/`.
+- [ ] Apka Klawa → Układ → Colemak / Colemak-DH, potem otwórz klawiaturę ponownie.
+- [ ] Klawisz `A` / `PL` / `EN`: czy zmienia język **dyktowania Apple** (mikrofon pod klawiaturą)?
+- [ ] Wygląd w trybie jasnym i ciemnym, wibracje.
