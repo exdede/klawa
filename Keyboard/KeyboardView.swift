@@ -15,6 +15,8 @@ final class KeyboardView: UIView {
     /// How likely each lowercase letter is to come next (nil = no idea): makes likely keys
     /// invisibly bigger, like the iOS keyboard.
     var letterOdds: (([String]) -> [Double]?)?
+    /// Letter bubble above the pressed key (setting); without it the key just darkens.
+    var showsBubble = false
     /// Popups are added here; it must contain this view and the space above it.
     weak var popupHost: UIView?
 
@@ -45,6 +47,7 @@ final class KeyboardView: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)
         isMultipleTouchEnabled = true
+        backgroundColor = KeyStyle.touchable // touches in the gaps between keys count too
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -150,7 +153,7 @@ final class KeyboardView: UIView {
         let kind = keys[t.keyIndex].kind
         switch kind {
         case .character:
-            showBubble(t)
+            showPress(t)
             startLongPress(t)
         case .backspace:
             t.mode = .backspace
@@ -208,8 +211,9 @@ final class KeyboardView: UIView {
                     if abs(p.x - t.anchor.x) > 25 { setCursorMode(t, on: true) }
                 } else if !t.committed, hypot(p.x - t.anchor.x, p.y - t.anchor.y) > 14,
                           let j = keyIndex(at: p), j != t.keyIndex, case .character = keys[j].kind {
+                    keyViews[t.keyIndex].setPressed(false)
                     t.keyIndex = j
-                    showBubble(t)
+                    showPress(t)
                     startLongPress(t)
                 }
             case .alternates(let popup):
@@ -304,6 +308,10 @@ final class KeyboardView: UIView {
     private func hostFrame(of i: Int) -> (CGRect, UIView)? {
         guard let host = popupHost else { return nil }
         return (convert(keyViews[i].frame, to: host), host)
+    }
+
+    private func showPress(_ t: Track) {
+        if showsBubble { showBubble(t) } else { keyViews[t.keyIndex].setPressed(true) }
     }
 
     private func showBubble(_ t: Track) {
@@ -475,7 +483,7 @@ final class KeyView: UIView {
             isFunction = false
             title = uppercase ? s.uppercased() : s
             let isLetter = s.count == 1 && s.first!.isLetter
-            font = .systemFont(ofSize: isLetter ? 25 : (s.count > 1 ? 18 : 22), weight: isLetter ? .light : .regular)
+            font = .systemFont(ofSize: isLetter ? 23 : (s.count > 1 ? 18 : 21))
         case .space:
             isFunction = false
             title = spaceLabel

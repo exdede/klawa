@@ -28,10 +28,10 @@ final class LayoutTests: XCTestCase {
 
     func testColemakTopRow() {
         let rows = keyRows(.colemak, page: .letters)
-        XCTAssertEqual(rows[0].map(\.kind), "qwfpgjluy;".map { KeyKind.character(String($0)) })
-        XCTAssertEqual(rows[0][9].alternates, ["0", ":"])
+        XCTAssertEqual(rows[0].map(\.kind), "qwfpgjluy".map { KeyKind.character(String($0)) })
+        XCTAssertEqual(rows[0].reduce(0) { $0 + $1.width }, 10, accuracy: 0.001)
         XCTAssertEqual(rows[1].count, 10)
-        XCTAssertEqual(rows[0][8].alternates.first, "9")
+        XCTAssertEqual(rows[0][8].alternates.prefix(2), ["9", "0"])
     }
 
     func testPolishLetterFirst() {
@@ -46,5 +46,13 @@ final class LayoutTests: XCTestCase {
                        [.pageNumbers, .language, .emoji, .space, .character("."), .returnKey])
         XCTAssertEqual(keyRows(.qwerty, page: .numbers)[3].first?.kind, .pageLetters)
         XCTAssertEqual(keyRows(.qwerty, page: .letters)[3][4].alternates.first, ",")
+    }
+
+    func testNumbersPage() {
+        let rows = keyRows(.qwerty, page: .numbers)
+        let all = rows.flatMap { $0 }
+        for s in ["zł", "$", "_", "#", "@"] { XCTAssertTrue(all.contains { $0.kind == .character(s) }, s) }
+        XCTAssertEqual(all.first { $0.kind == .character("$") }?.alternates.first, "¢")
+        XCTAssertTrue(keyRows(.qwerty, page: .symbols).flatMap { $0 }.contains { $0.kind == .character("&") })
     }
 }

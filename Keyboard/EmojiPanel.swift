@@ -30,8 +30,9 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
         layout.headerReferenceSize = CGSize(width: 0, height: 24)
         collection = UICollectionView(frame: .zero, collectionViewLayout: layout)
         super.init(frame: .zero)
+        backgroundColor = KeyStyle.touchable
 
-        collection.backgroundColor = .clear
+        collection.backgroundColor = KeyStyle.touchable
         collection.register(EmojiCell.self, forCellWithReuseIdentifier: "e")
         collection.register(EmojiHeader.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: "h")
         collection.dataSource = self
@@ -39,12 +40,12 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
 
         let bar = UIStackView()
         bar.distribution = .fillEqually
-        bar.addArrangedSubview(button(title: "ABC") { [weak self] in self?.onClose?() })
-        bar.addArrangedSubview(button(symbol: "magnifyingglass") { [weak self] in self?.onSearch?() })
+        bar.addArrangedSubview(PanelButton.make(title: "ABC") { [weak self] in self?.onClose?() })
+        bar.addArrangedSubview(PanelButton.make(symbol: "magnifyingglass") { [weak self] in self?.onSearch?() })
         for (i, group) in groups.enumerated() {
-            bar.addArrangedSubview(button(title: Self.symbols[group.name] ?? "•") { [weak self] in self?.jump(to: i) })
+            bar.addArrangedSubview(PanelButton.make(title: Self.symbols[group.name] ?? "•", fontSize: 20) { [weak self] in self?.jump(to: i) })
         }
-        bar.addArrangedSubview(button(symbol: "delete.left") { [weak self] in self?.onBackspace?() })
+        bar.addArrangedSubview(PanelButton.make(symbol: "delete.left", repeats: true) { [weak self] in self?.onBackspace?() })
 
         for v in [collection, bar] as [UIView] {
             v.translatesAutoresizingMaskIntoConstraints = false
@@ -63,17 +64,6 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
     }
 
     required init?(coder: NSCoder) { fatalError() }
-
-    private func button(title: String? = nil, symbol: String? = nil, action: @escaping () -> Void) -> UIButton {
-        let b = UIButton(type: .system)
-        b.setTitle(title, for: .normal)
-        b.setTitleColor(.label, for: .normal)
-        b.titleLabel?.font = .systemFont(ofSize: title == "ABC" ? 15 : 20)
-        if let symbol { b.setImage(UIImage(systemName: symbol), for: .normal) }
-        b.tintColor = .label
-        b.addAction(UIAction { _ in action() }, for: .touchUpInside)
-        return b
-    }
 
     private func jump(to section: Int) {
         guard let attrs = collection.layoutAttributesForSupplementaryElement(

@@ -133,6 +133,7 @@ final class KeyboardViewController: UIInputViewController {
         layoutName = d?.string(forKey: SettingsKey.layout).flatMap(LayoutName.init(rawValue:)) ?? .qwerty
         haptics = d?.object(forKey: SettingsKey.haptics) as? Bool ?? true
         autocorrect = d?.object(forKey: SettingsKey.autocorrect) as? Bool ?? true
+        keyboard.showsBubble = d?.bool(forKey: SettingsKey.keyPopup) ?? false
         languageMode = d?.string(forKey: SettingsKey.languageMode).flatMap(LanguageMode.init(rawValue:)) ?? .pl
         applyLanguage()
     }

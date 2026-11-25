@@ -30,7 +30,7 @@ public struct Key: Equatable {
 
 private let letterRows: [LayoutName: [String]] = [
     .qwerty: ["qwertyuiop", "asdfghjkl", "zxcvbnm"],
-    .colemak: ["qwfpgjluy;", "arstdhneio", "zxcvbkm"],
+    .colemak: ["qwfpgjluy", "arstdhneio", "zxcvbkm"], // 9 wider keys on top
 ]
 
 private let polishLetters = Set("ąćęłńóśźż")
@@ -54,12 +54,12 @@ private let symbolAlternates: [String: [String]] = [
     "-": ["–", "—", "•"],
     "\"": ["„", "”", "«", "»"],
     "'": ["‘", "’"],
-    "zł": ["$", "€", "£", "¥"],
+    "zł": ["€", "£", "¥"],
+    "$": ["¢", "€", "£", "¥"],
     "0": ["°"],
     "?": ["¿"],
     "!": ["¡"],
     "&": ["§"],
-    ";": [":"],
 ]
 
 private func chars(_ items: [String], width: Double = 1) -> [Key] {
@@ -72,35 +72,37 @@ private func split(_ s: String) -> [String] { s.map(String.init) }
 public func keyRows(_ layout: LayoutName, page: Page) -> [[Key]] {
     let bottom: [Key] = [
         Key(page == .letters ? .pageNumbers : .pageLetters, width: 1.2),
-        Key(.language, width: 1.1),
-        Key(.emoji, width: 1.1),
-        Key(.space, width: 3.6),
-    ] + chars(["."]) + [Key(.returnKey, width: 2)]
+        Key(.language, width: 1.0),
+        Key(.emoji, width: 1.0),
+        Key(.space, width: 4.3),
+    ] + chars(["."]) + [Key(.returnKey, width: 1.5)]
 
     switch page {
     case .letters:
         let rows = letterRows[layout]!
-        let top = split(rows[0]).enumerated().map { i, ch in
+        let topLetters = split(rows[0])
+        let top = topLetters.enumerated().map { i, ch in
             let digit = String((i + 1) % 10)
             let accented = accents[ch] ?? symbolAlternates[ch] ?? []
             // Polish letter first (release = ó for o), then the digit, then other accents.
             let polish = accented.filter { polishLetters.contains(Character($0)) }
             let others = accented.filter { !polishLetters.contains(Character($0)) }
-            return Key(.character(ch), alternates: polish + [digit] + others, hint: digit)
+            let zero = topLetters.count == 9 && i == 8 ? ["0"] : [] // short top row: 0 hides under the last key
+            return Key(.character(ch), width: 10.0 / Double(topLetters.count), alternates: polish + [digit] + zero + others, hint: digit)
         }
         let letters = { (s: String) in split(s).map { Key(.character($0), alternates: accents[$0] ?? []) } }
         return [top, letters(rows[1]), [Key(.shift, width: 1.5)] + letters(rows[2]) + [Key(.backspace, width: 1.5)], bottom]
     case .numbers:
         return [
             chars(split("1234567890")),
-            chars(["-", "/", ":", ";", "(", ")", "zł", "&", "@", "\""]),
-            [Key(.pageSymbols, width: 1.5)] + chars([".", ",", "?", "!", "'"], width: 1.4) + [Key(.backspace, width: 1.5)],
+            chars(["-", "/", ":", ";", "(", ")", "zł", "$", "@", "\""]),
+            [Key(.pageSymbols, width: 1.5)] + chars([".", ",", "?", "!", "'", "_", "#"]) + [Key(.backspace, width: 1.5)],
             bottom,
         ]
     case .symbols:
         return [
             chars(["[", "]", "{", "}", "#", "%", "^", "*", "+", "="]),
-            chars(["_", "\\", "|", "~", "<", ">", "€", "$", "£", "•"]),
+            chars(["&", "\\", "|", "~", "<", ">", "€", "£", "¥", "•"]),
             [Key(.pageNumbers, width: 1.5)] + chars([".", ",", "?", "!", "'"], width: 1.4) + [Key(.backspace, width: 1.5)],
             bottom,
         ]
@@ -110,9 +112,12 @@ public func keyRows(_ layout: LayoutName, page: Page) -> [[Key]] {
 /// Letters next to each letter on the layout (same row and the rows above/below), for typo costs.
 public func letterNeighbors(_ layout: LayoutName) -> [Character: Set<Character>] {
     var positions: [(Character, Double, Int)] = []
-    for (r, row) in letterRows[layout]!.enumerated() {
-        let offset = Double(10 - row.count) / 2 // short rows are centered
-        for (c, ch) in row.enumerated() where ch.isLetter { positions.append((ch, Double(c) + offset, r)) }
+    for (r, row) in keyRows(layout, page: .letters).prefix(3).enumerated() {
+        var x = (10 - row.reduce(0) { $0 + $1.width }) / 2 // short rows are centered
+        for key in row {
+            if case .character(let s) = key.kind, let ch = s.first, ch.isLetter { positions.append((ch, x + key.width / 2, r)) }
+            x += key.width
+        }
     }
     var out: [Character: Set<Character>] = [:]
     for (a, ax, ar) in positions {

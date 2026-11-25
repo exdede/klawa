@@ -17,7 +17,8 @@ final class ClipboardPanel: UIView, UITableViewDataSource, UITableViewDelegate {
     init(history: ClipboardHistory, fullAccess: Bool) {
         self.history = history
         super.init(frame: .zero)
-        table.backgroundColor = .clear
+        backgroundColor = KeyStyle.touchable
+        table.backgroundColor = KeyStyle.touchable
         table.dataSource = self
         table.delegate = self
         table.register(UITableViewCell.self, forCellReuseIdentifier: "c")
@@ -30,12 +31,12 @@ final class ClipboardPanel: UIView, UITableViewDataSource, UITableViewDelegate {
 
         let bar = UIStackView()
         bar.distribution = .fillEqually
-        bar.addArrangedSubview(button(title: "ABC") { [weak self] in self?.onClose?() })
-        bar.addArrangedSubview(button(title: "Wyczyść") { [weak self] in
+        bar.addArrangedSubview(PanelButton.make(title: "ABC") { [weak self] in self?.onClose?() })
+        bar.addArrangedSubview(PanelButton.make(title: "Wyczyść") { [weak self] in
             self?.history.clearUnpinned()
             self?.changed()
         })
-        bar.addArrangedSubview(button(symbol: "delete.left") { [weak self] in self?.onBackspace?() })
+        bar.addArrangedSubview(PanelButton.make(symbol: "delete.left", repeats: true) { [weak self] in self?.onBackspace?() })
 
         for v in [table, note, bar] as [UIView] {
             v.translatesAutoresizingMaskIntoConstraints = false
@@ -58,17 +59,6 @@ final class ClipboardPanel: UIView, UITableViewDataSource, UITableViewDelegate {
     }
 
     required init?(coder: NSCoder) { fatalError() }
-
-    private func button(title: String? = nil, symbol: String? = nil, action: @escaping () -> Void) -> UIButton {
-        let b = UIButton(type: .system)
-        b.setTitle(title, for: .normal)
-        b.setTitleColor(.label, for: .normal)
-        b.titleLabel?.font = .systemFont(ofSize: 15)
-        if let symbol { b.setImage(UIImage(systemName: symbol), for: .normal) }
-        b.tintColor = .label
-        b.addAction(UIAction { _ in action() }, for: .touchUpInside)
-        return b
-    }
 
     private func reload() {
         rows = []
@@ -101,7 +91,7 @@ final class ClipboardPanel: UIView, UITableViewDataSource, UITableViewDelegate {
             content.directionalLayoutMargins.leading = 28
         }
         cell.contentConfiguration = content
-        cell.backgroundColor = .clear
+        cell.backgroundColor = KeyStyle.touchable
         return cell
     }
 

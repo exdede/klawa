@@ -12,6 +12,7 @@ struct ContentView: View {
     @AppStorage(SettingsKey.layout, store: AppGroup.defaults) private var layout = LayoutName.qwerty
     @AppStorage(SettingsKey.haptics, store: AppGroup.defaults) private var haptics = true
     @AppStorage(SettingsKey.autocorrect, store: AppGroup.defaults) private var autocorrect = true
+    @AppStorage(SettingsKey.keyPopup, store: AppGroup.defaults) private var keyPopup = false
 
     var body: some View {
         NavigationStack {
@@ -28,6 +29,7 @@ struct ContentView: View {
                     }
                     Toggle("Wibracje", isOn: $haptics)
                     Toggle("Autokorekta", isOn: $autocorrect)
+                    Toggle("Powiększona litera nad klawiszem", isOn: $keyPopup)
                 } header: {
                     Text("Ustawienia")
                 } footer: {

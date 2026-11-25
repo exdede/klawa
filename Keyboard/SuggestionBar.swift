@@ -24,6 +24,7 @@ final class SuggestionBar: UIView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
+        backgroundColor = KeyStyle.touchable
         slots.distribution = .fillEqually
         slots.spacing = 4
         slotRow.addArrangedSubview(icon("clipboard") { [weak self] in self?.onClipboard?() })
@@ -82,6 +83,7 @@ final class SuggestionBar: UIView {
         let b = UIButton(type: .system)
         b.setImage(UIImage(systemName: symbol), for: .normal)
         b.tintColor = .secondaryLabel
+        b.backgroundColor = KeyStyle.touchable
         b.widthAnchor.constraint(equalToConstant: 36).isActive = true
         b.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return b
@@ -116,7 +118,7 @@ final class SuggestionBar: UIView {
 
     private func paint() {
         for (i, l) in slotLabels.enumerated() {
-            l.backgroundColor = i == pressedSlot ? KeyStyle.functionKey : (i == highlighted ? KeyStyle.letterKey : .clear)
+            l.backgroundColor = i == pressedSlot ? KeyStyle.functionKey : (i == highlighted ? KeyStyle.letterKey : KeyStyle.touchable)
         }
     }
 

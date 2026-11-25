@@ -5,4 +5,5 @@ enum SettingsKey {
     static let languageMode = "languageMode"
     static let autocorrect = "autocorrect"
     static let snippets = "snippets"
+    static let keyPopup = "keyPopup"
 }
