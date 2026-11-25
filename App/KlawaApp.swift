@@ -1,4 +1,5 @@
 import SwiftUI
+import KlawaCore
 
 @main
 struct KlawaApp: App {
@@ -8,29 +9,34 @@ struct KlawaApp: App {
 }
 
 struct ContentView: View {
-    @Environment(\.scenePhase) private var phase
-    @State private var reload = 0
+    @AppStorage(SettingsKey.layout, store: AppGroup.defaults) private var layout = LayoutName.qwerty
+    @AppStorage(SettingsKey.haptics, store: AppGroup.defaults) private var haptics = true
 
     var body: some View {
-        let defaults = AppGroup.defaults
-        let lastSeen = defaults?.object(forKey: "lastSeen") as? Date
         NavigationStack {
             List {
-                Section("Włączanie klawiatury") {
-                    Text("1. Ustawienia → Ogólne → Klawiatura → Klawiatury → Dodaj nową klawiaturę → Klawa")
-                    Text("2. Stuknij „Klawa” na liście → włącz „Pozwól na pełny dostęp”")
-                    Text("3. W dowolnej apce przytrzymaj globus i wybierz Klawa")
+                Section("Włączanie") {
+                    Text("1. Settings → General → Keyboard → Keyboards → Add New Keyboard → Klawa")
+                    Text("2. Stuknij „Klawa” → włącz „Allow Full Access”")
+                    Text("3. W dowolnej apce przełącz globusem na Klawę")
                 }
-                Section("Test etapu 0") {
-                    LabeledContent("ID grupy", value: AppGroup.id)
-                    LabeledContent("Kontener grupy", value: AppGroup.containerURL == nil ? "BRAK" : "ok")
-                    LabeledContent("Klawiatura widziana", value: lastSeen?.formatted(date: .omitted, time: .standard) ?? "brak danych")
-                    LabeledContent("Pełny dostęp", value: lastSeen == nil ? "brak danych" : (defaults?.bool(forKey: "hasFullAccess") == true ? "tak" : "nie"))
+                Section {
+                    Picker("Układ", selection: $layout) {
+                        Text("QWERTY").tag(LayoutName.qwerty)
+                        Text("Colemak").tag(LayoutName.colemak)
+                        Text("Colemak-DH").tag(LayoutName.colemakDH)
+                    }
+                    Toggle("Wibracje", isOn: $haptics)
+                } header: {
+                    Text("Ustawienia")
+                } footer: {
+                    Text("Zmiany działają od następnego otwarcia klawiatury.")
+                }
+                Section("Status") {
+                    LabeledContent("Wspólny folder", value: AppGroup.containerURL == nil ? "BRAK" : "ok")
                 }
             }
             .navigationTitle("Klawa")
-            .id(reload)
         }
-        .onChange(of: phase) { _, new in if new == .active { reload += 1 } }
     }
 }

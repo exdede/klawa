@@ -7,3 +7,5 @@ App/Info.plist
 Keyboard/Info.plist
 *.entitlements
 .DS_Store
+.build/
+.swiftpm/

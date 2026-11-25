@@ -1,100 +1,246 @@
 import UIKit
+import KlawaCore
 
-/// Phase 0 throwaway keyboard: proves install, Full Access, globe and App Group on the phone.
+/// Input view that lets `playInputClick()` play the system keyboard click.
+final class KlawaInputView: UIInputView, UIInputViewAudioFeedback {
+    var enableInputClicksWhenVisible: Bool { true }
+}
+
 final class KeyboardViewController: UIInputViewController {
-    private var shifted = false
-    private var letterButtons: [UIButton] = []
-    private let statusLabel = UILabel()
-    private lazy var globeButton = key("🌐", width: 44) { _ in }
+    private var state = KeyboardState()
+    private let keyboard = KeyboardView()
+    private let topBar = UIView() // Phase 2: suggestions
+    private var emojiPanel: EmojiPanel?
+    private var layoutName = LayoutName.qwerty
+    private var haptics = true
+    private var languageMode = LanguageMode.auto
+    private var lastSpaceAt: TimeInterval?
+    private var lastKeyboardType: UIKeyboardType?
+    private let feedback = UIImpactFeedbackGenerator(style: .light)
+    private static let recentsKey = "emojiRecents"
+
+    override func loadView() {
+        let input = KlawaInputView(frame: .zero, inputViewStyle: .keyboard)
+        input.allowsSelfSizing = true
+        view = input
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        statusLabel.font = .systemFont(ofSize: 11)
-        statusLabel.textColor = .secondaryLabel
-        statusLabel.textAlignment = .center
-
-        let letterRows = ["qwertyuiop", "asdfghjkl", "zxcvbnm"].map { row in
-            row.map { ch -> UIButton in
-                let b = key(String(ch)) { [weak self] b in self?.type(b.currentTitle ?? "") }
-                letterButtons.append(b)
-                return b
-            }
+        for v in [topBar, keyboard] as [UIView] {
+            v.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(v)
         }
-
-        globeButton.addTarget(self, action: #selector(handleInputModeList(from:with:)), for: .allTouchEvents)
-
-        let rows: [[UIView]] = [
-            letterRows[0],
-            letterRows[1],
-            [key("⇧", width: 44) { [weak self] _ in self?.setShift(!(self?.shifted ?? false)) }]
-                + letterRows[2]
-                + [key("⌫", width: 44) { [weak self] _ in self?.textDocumentProxy.deleteBackward() }],
-            [globeButton,
-             key("spacja") { [weak self] _ in self?.textDocumentProxy.insertText(" ") },
-             key("⏎", width: 88) { [weak self] _ in self?.textDocumentProxy.insertText("\n") }],
-        ]
-
-        let stack = UIStackView(arrangedSubviews: [statusLabel] + rows.map(row))
-        stack.axis = .vertical
-        stack.spacing = 8
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(stack)
+        let height = view.heightAnchor.constraint(equalToConstant: KeyStyle.keyboardHeight)
+        height.priority = UILayoutPriority(999)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 3),
-            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -3),
-            stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 6),
-            stack.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -6),
+            topBar.topAnchor.constraint(equalTo: view.topAnchor),
+            topBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            topBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            topBar.heightAnchor.constraint(equalToConstant: KeyStyle.topBarHeight),
+            keyboard.topAnchor.constraint(equalTo: topBar.bottomAnchor),
+            keyboard.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            keyboard.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            keyboard.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            height,
         ])
-        setShift(false)
+
+        keyboard.popupHost = view
+        keyboard.onPress = { [weak self] in self?.press() }
+        keyboard.onInsert = { [weak self] in self?.insert($0) }
+        keyboard.onKey = { [weak self] in self?.handle($0) }
+        keyboard.onBackspace = { [weak self] in self?.backspace($0) }
+        keyboard.onCursorMove = { [weak self] in self?.moveCursor($0) }
+        keyboard.onGlobe = { [weak self] view, event in self?.handleInputModeList(from: view, with: event) }
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        let defaults = AppGroup.defaults
-        defaults?.set(Date(), forKey: "lastSeen")
-        defaults?.set(hasFullAccess, forKey: "hasFullAccess")
-        statusLabel.text = "Klawa etap 0 · Pełny dostęp: \(hasFullAccess ? "tak" : "nie") · grupa: \(defaults == nil ? "BRAK" : "ok")"
+        loadSettings()
+        hideEmoji()
+        state = KeyboardState()
+        lastKeyboardType = textDocumentProxy.keyboardType
+        state.page = startPage()
+        lastSpaceAt = nil
+        feedback.prepare()
+        refresh()
     }
 
-    override func viewWillLayoutSubviews() {
-        super.viewWillLayoutSubviews()
-        globeButton.isHidden = !needsInputModeSwitchKey
+    override func textDidChange(_ textInput: UITextInput?) {
+        super.textDidChange(textInput)
+        if textDocumentProxy.keyboardType != lastKeyboardType {
+            lastKeyboardType = textDocumentProxy.keyboardType
+            state.page = startPage()
+        }
+        refresh()
     }
 
-    private func type(_ text: String) {
-        textDocumentProxy.insertText(text)
-        if shifted { setShift(false) }
+    // MARK: settings and layout
+
+    private func loadSettings() {
+        let d = AppGroup.defaults
+        layoutName = d?.string(forKey: SettingsKey.layout).flatMap(LayoutName.init(rawValue:)) ?? .qwerty
+        haptics = d?.object(forKey: SettingsKey.haptics) as? Bool ?? true
+        languageMode = d?.string(forKey: SettingsKey.languageMode).flatMap(LanguageMode.init(rawValue:)) ?? .auto
+        applyLanguage()
     }
 
-    private func setShift(_ on: Bool) {
-        shifted = on
-        for b in letterButtons {
-            let t = b.currentTitle ?? ""
-            b.setTitle(on ? t.uppercased() : t.lowercased(), for: .normal)
+    private func applyLanguage() {
+        // Hint for the system (e.g. Apple dictation); suggestions come in Phase 2.
+        primaryLanguage = languageMode == .en ? "en-US" : "pl-PL"
+    }
+
+    private func startPage() -> Page {
+        let numeric: [UIKeyboardType] = [.numberPad, .decimalPad, .phonePad, .asciiCapableNumberPad, .numbersAndPunctuation]
+        return numeric.contains(textDocumentProxy.keyboardType ?? .default) ? .numbers : .letters
+    }
+
+    private func currentRows() -> [[Key]] {
+        var rows = keyRows(layoutName, page: state.page)
+        var bottom = rows[3]
+        var spaceDelta = 0.0
+        if let dot = bottom.firstIndex(where: { $0.kind == .character(".") }) {
+            switch textDocumentProxy.keyboardType ?? .default {
+            case .emailAddress:
+                bottom.insert(Key(.character("@")), at: dot)
+                spaceDelta += 1
+            case .URL:
+                bottom.insert(Key(.character("/"), alternates: [".com", ".pl", ".org", ".net"]), at: dot)
+                spaceDelta += 1
+            default:
+                break
+            }
+        }
+        if needsInputModeSwitchKey {
+            bottom.insert(Key(.globe, width: 1.1), at: 1)
+            spaceDelta += 1.1
+        }
+        if spaceDelta > 0, let s = bottom.firstIndex(where: { $0.kind == .space }) {
+            bottom[s] = Key(.space, width: bottom[s].width - spaceDelta)
+        }
+        rows[3] = bottom
+        return rows
+    }
+
+    private func refresh() {
+        let language: (key: String, space: String)
+        switch languageMode {
+        case .auto: language = ("A", "PL · EN")
+        case .pl: language = ("PL", "Polski")
+        case .en: language = ("EN", "English")
+        }
+        keyboard.configure(rows: currentRows(), uppercase: state.page == .letters && state.shift != .off, shift: state.shift,
+                           languageLabel: language.key, spaceLabel: language.space, returnLabel: returnLabel())
+    }
+
+    private func returnLabel() -> String? {
+        switch textDocumentProxy.returnKeyType ?? .default {
+        case .go: return "go"
+        case .google, .yahoo, .search: return "search"
+        case .join: return "join"
+        case .next: return "next"
+        case .route: return "route"
+        case .send: return "send"
+        case .done: return "done"
+        case .continue: return "continue"
+        case .emergencyCall: return "SOS"
+        default: return nil
         }
     }
 
-    private func row(_ keys: [UIView]) -> UIStackView {
-        let s = UIStackView(arrangedSubviews: keys)
-        s.spacing = 6
-        s.distribution = .fill
-        // letter keys share the remaining width equally
-        let flexible = keys.filter { $0.constraints.allSatisfy { $0.firstAttribute != .width } }
-        for k in flexible.dropFirst() { k.widthAnchor.constraint(equalTo: flexible[0].widthAnchor).isActive = true }
-        return s
+    // MARK: actions
+
+    private func press() {
+        if haptics && hasFullAccess { feedback.impactOccurred() }
+        UIDevice.current.playInputClick()
     }
 
-    private func key(_ title: String, width: CGFloat? = nil, action: @escaping (UIButton) -> Void) -> UIButton {
-        let b = UIButton(type: .system)
-        b.setTitle(title, for: .normal)
-        b.titleLabel?.font = .systemFont(ofSize: 22)
-        b.setTitleColor(.label, for: .normal)
-        b.backgroundColor = UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.42, alpha: 1) : .white }
-        b.layer.cornerRadius = 6
-        b.heightAnchor.constraint(equalToConstant: 44).isActive = true
-        if let width { b.widthAnchor.constraint(equalToConstant: width).isActive = true }
-        b.addAction(UIAction { a in action(a.sender as! UIButton) }, for: .touchUpInside)
-        return b
+    private func insert(_ text: String) {
+        textDocumentProxy.insertText(text)
+        lastSpaceAt = nil
+        let before = state.shift
+        state.typedCharacter()
+        if state.shift != before { refresh() }
+    }
+
+    private func handle(_ kind: KeyKind) {
+        switch kind {
+        case .space:
+            let now = CACurrentMediaTime()
+            if TextOps.shouldInsertPeriod(contextBefore: textDocumentProxy.documentContextBeforeInput, lastSpaceAt: lastSpaceAt, now: now) {
+                textDocumentProxy.deleteBackward()
+                textDocumentProxy.insertText(". ")
+                lastSpaceAt = nil
+            } else {
+                textDocumentProxy.insertText(" ")
+                lastSpaceAt = now
+            }
+            state.typedSpaceOrReturn()
+        case .returnKey:
+            textDocumentProxy.insertText("\n")
+            lastSpaceAt = nil
+            state.typedSpaceOrReturn()
+        case .shift:
+            state.tapShift(at: CACurrentMediaTime())
+        case .pageNumbers:
+            state.page = .numbers
+        case .pageSymbols:
+            state.page = .symbols
+        case .pageLetters:
+            state.page = .letters
+        case .language:
+            languageMode = languageMode.next
+            AppGroup.defaults?.set(languageMode.rawValue, forKey: SettingsKey.languageMode)
+            applyLanguage()
+        case .emoji:
+            showEmoji()
+            return
+        case .character, .backspace, .globe:
+            return
+        }
+        refresh()
+    }
+
+    private func backspace(_ unit: BackspaceUnit) {
+        lastSpaceAt = nil
+        let count = unit == .word ? max(1, TextOps.wordDeleteCount(contextBefore: textDocumentProxy.documentContextBeforeInput)) : 1
+        for _ in 0..<count { textDocumentProxy.deleteBackward() }
+    }
+
+    private func moveCursor(_ steps: Int) {
+        let offset = TextOps.cursorOffset(step: steps,
+                                          contextBefore: textDocumentProxy.documentContextBeforeInput,
+                                          contextAfter: textDocumentProxy.documentContextAfterInput)
+        textDocumentProxy.adjustTextPosition(byCharacterOffset: offset)
+    }
+
+    // MARK: emoji
+
+    private func showEmoji() {
+        let panel = EmojiPanel(recents: UserDefaults.standard.stringArray(forKey: Self.recentsKey) ?? [])
+        panel.onEmoji = { [weak self] emoji in
+            self?.press()
+            self?.textDocumentProxy.insertText(emoji)
+            let recents = UserDefaults.standard.stringArray(forKey: Self.recentsKey) ?? []
+            UserDefaults.standard.set(EmojiCatalog.addRecent(emoji, to: recents), forKey: Self.recentsKey)
+        }
+        panel.onBackspace = { [weak self] in self?.textDocumentProxy.deleteBackward() }
+        panel.onClose = { [weak self] in self?.hideEmoji() }
+        panel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(panel)
+        NSLayoutConstraint.activate([
+            panel.topAnchor.constraint(equalTo: keyboard.topAnchor),
+            panel.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            panel.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            panel.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+        keyboard.isHidden = true
+        emojiPanel = panel
+    }
+
+    private func hideEmoji() {
+        emojiPanel?.removeFromSuperview()
+        emojiPanel = nil
+        keyboard.isHidden = false
     }
 }
