@@ -2,7 +2,7 @@ import UIKit
 
 /// Phase 0 throwaway keyboard: proves install, Full Access, globe and App Group on the phone.
 final class KeyboardViewController: UIInputViewController {
-    private var shifted = true
+    private var shifted = false
     private var letterButtons: [UIButton] = []
     private let statusLabel = UILabel()
     private lazy var globeButton = key("🌐", width: 44) { _ in }
@@ -46,7 +46,7 @@ final class KeyboardViewController: UIInputViewController {
             stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 6),
             stack.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -6),
         ])
-        setShift(true)
+        setShift(false)
     }
 
     override func viewWillAppear(_ animated: Bool) {
