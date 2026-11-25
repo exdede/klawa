@@ -73,6 +73,24 @@ Link z punktu 9 zawsze prowadzi do najnowszego buildu. Pobierz go i zainstaluj p
 - [ ] `123` i `#+=`: cyfry i symbole, spacja wraca do liter.
 - [ ] 😊 otwiera emoji, ostatnio użyte są na górze, `ABC` wraca.
 - [ ] Pole e-mail ma `@`, pole adresu WWW ma `/`.
-- [ ] Apka Klawa → Układ → Colemak / Colemak-DH, potem otwórz klawiaturę ponownie.
-- [ ] Klawisz `A` / `PL` / `EN`: czy zmienia język **dyktowania Apple** (mikrofon pod klawiaturą)?
+- [ ] Apka Klawa → Układ → Colemak, potem otwórz klawiaturę ponownie.
+- [ ] Klawisz `PL` / `EN`: zmienia język **dyktowania Apple** (mikrofon pod klawiaturą).
 - [ ] Wygląd w trybie jasnym i ciemnym, wibracje.
+
+## Test etapu 2 i 3 (podpowiedzi, autokorekta, emoji, schowek)
+
+Po pierwszym otwarciu klawiatury słownik ładuje się ok. pół sekundy, potem pasek nad klawiszami ożywa.
+
+- [ ] Pasek: po lewej wpisany tekst w cudzysłowie (stuknięcie zostawia tak, jak jest, i klawiatura to zapamiętuje), w środku najlepsza podpowiedź, po prawej druga.
+- [ ] Bez polskich liter: `zolw` + spacja daje `żółw`, `sie` daje `się`, `zrobie` daje `zrobię`. Słowa, które istnieją (`ze`, `laska`), zostają, a wersja z ogonkiem jest w pasku.
+- [ ] Literówki: `nue` → `nie`, `teh` → `the`. Podświetlony środek = to wstawi spacja.
+- [ ] Cofnięcie: zaraz po autokorekcie backspace przywraca wpisany tekst i więcej tego słowa nie poprawia.
+- [ ] Nowe słowo (imię, slang) wpisane dwa razy przestaje być poprawiane i pojawia się w podpowiedziach.
+- [ ] Po spacji pasek podpowiada następne słowo, którego często używasz po poprzednim (uczy się z czasem).
+- [ ] Matematyka: wpisz `12*3` albo `2,5+1=`, w pasku pojawi się wynik, stuknięcie go wstawia.
+- [ ] Niewidzialnie większe klawisze: pisz szybko i niedbale, mniej literówek niż wcześniej? Trafienie w środek klawisza zawsze daje ten klawisz.
+- [ ] Autokorektę można wyłączyć w apce Klawa (przełącznik „Autokorekta”).
+- [ ] Emoji → lupa: wpisz `kot`, `serce`, `pizza`, `heart`. Stuknięcie wstawia emoji, ✕ albo return zamyka szukanie.
+- [ ] Schowek (wymaga „Allow Full Access”): skopiuj tekst w innej apce, wróć do klawiatury, w pasku pojawi się `📋 …`, stuknięcie wkleja. Jeśli iOS pyta o zgodę na wklejanie, napisz mi.
+- [ ] Ikona schowka z lewej strony paska: historia, przesunięcie w lewo = Przypnij / Usuń, linki, maile i numery telefonów z tekstu jako osobne wiersze. Nieprzypięte znikają po godzinie.
+- [ ] Hasła z menedżera haseł nie powinny trafiać do historii.
