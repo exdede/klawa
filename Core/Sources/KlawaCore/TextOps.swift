@@ -33,6 +33,49 @@ public enum TextOps {
     }
 }
 
+extension TextOps {
+    private static func isWordChar(_ c: Character) -> Bool { c.isLetter || c == "'" || c == "’" }
+
+    /// Word right before the cursor (letters and apostrophes), "" after a space or punctuation.
+    public static func currentWord(contextBefore: String?) -> String {
+        var word = String((contextBefore ?? "").reversed().prefix(while: isWordChar).reversed())
+        while let f = word.first, !f.isLetter { word.removeFirst() }
+        return word
+    }
+
+    /// Word before the current one, if only spaces separate them (no sentence break).
+    public static func previousWord(contextBefore: String?) -> String? {
+        var rest = Substring(contextBefore ?? "")
+        rest = rest.dropLast(currentWord(contextBefore: contextBefore).count)
+        guard rest.last == " " else { return nil }
+        while rest.last == " " { rest.removeLast() }
+        let word = currentWord(contextBefore: String(rest))
+        return word.isEmpty ? nil : word
+    }
+}
+
+/// Picks the key a touch meant: closeness to each key center plus how likely its letter
+/// comes next. The bias is capped, so a touch near a key's center always gets that key.
+public enum TouchModel {
+    static let sigma = 0.45      // in key pitches
+    static let weight = 0.4      // how much the letter odds count
+    static let maxLogRatio = 3.0 // odds above e^3 = 20x count no more
+
+    /// `offsets`: touch minus key center, in key pitches. `masses`: likelihood of each key's letter.
+    public static func pick(offsets: [(dx: Double, dy: Double)], masses: [Double]) -> Int {
+        let top = masses.max() ?? 0
+        guard top > 0 else { return nearest(offsets) }
+        let scores = zip(offsets, masses).map { o, m in
+            -(o.dx * o.dx + o.dy * o.dy) / (2 * sigma * sigma) + weight * max(log(m / top), -maxLogRatio)
+        }
+        return scores.indices.max { scores[$0] < scores[$1] } ?? 0
+    }
+
+    static func nearest(_ offsets: [(dx: Double, dy: Double)]) -> Int {
+        offsets.indices.min { hypot(offsets[$0].dx, offsets[$0].dy) < hypot(offsets[$1].dx, offsets[$1].dy) } ?? 0
+    }
+}
+
 public enum PopupGeometry {
     /// Left edge of a popup centered on a key, kept inside the container.
     public static func originX(keyMidX: Double, popupWidth: Double, containerWidth: Double, margin: Double = 2) -> Double {

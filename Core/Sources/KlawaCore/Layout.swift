@@ -106,3 +106,17 @@ public func keyRows(_ layout: LayoutName, page: Page) -> [[Key]] {
         ]
     }
 }
+
+/// Letters next to each letter on the layout (same row and the rows above/below), for typo costs.
+public func letterNeighbors(_ layout: LayoutName) -> [Character: Set<Character>] {
+    var positions: [(Character, Double, Int)] = []
+    for (r, row) in letterRows[layout]!.enumerated() {
+        let offset = Double(10 - row.count) / 2 // short rows are centered
+        for (c, ch) in row.enumerated() where ch.isLetter { positions.append((ch, Double(c) + offset, r)) }
+    }
+    var out: [Character: Set<Character>] = [:]
+    for (a, ax, ar) in positions {
+        out[a] = Set(positions.filter { $0.0 != a && abs($0.2 - ar) <= 1 && abs($0.1 - ax) <= 1.1 }.map { $0.0 })
+    }
+    return out
+}
