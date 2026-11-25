@@ -4,16 +4,11 @@ public enum ShiftState: Equatable {
     case off, on, capsLock
 }
 
+/// Preferred language: sets Apple dictation language and (Phase 2) which language suggestions favor.
 public enum LanguageMode: String, CaseIterable {
-    case auto, pl, en
+    case pl, en
 
-    public var next: LanguageMode {
-        switch self {
-        case .auto: return .pl
-        case .pl: return .en
-        case .en: return .auto
-        }
-    }
+    public var next: LanguageMode { self == .pl ? .en : .pl }
 }
 
 /// Shift and page state. No auto-capitalization: shift changes only on user taps.

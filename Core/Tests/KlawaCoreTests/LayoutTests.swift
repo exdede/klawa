@@ -19,18 +19,19 @@ final class LayoutTests: XCTestCase {
     func testTopRowDigitThenAccents() {
         let e = keyRows(.qwerty, page: .letters)[0][2]
         XCTAssertEqual(e.kind, .character("e"))
-        XCTAssertEqual(e.alternates, ["3", "ę", "é", "è", "ê", "ë", "ė"])
+        XCTAssertEqual(e.alternates, ["ę", "3", "é", "è", "ê", "ë", "ė"])
+        XCTAssertEqual(keyRows(.qwerty, page: .letters)[0][8].alternates.prefix(2), ["ó", "9"])
+        XCTAssertEqual(keyRows(.qwerty, page: .letters)[0][6].alternates.first, "7") // u: no Polish letter
         XCTAssertEqual(e.hint, "3")
         XCTAssertEqual(keyRows(.qwerty, page: .letters)[0][9].hint, "0")
     }
 
     func testColemakTopRow() {
-        let top = keyRows(.colemak, page: .letters)[0]
-        XCTAssertEqual(top.count, 9)
-        XCTAssertEqual(top[8].kind, .character("y"))
-        XCTAssertEqual(top[8].alternates.first, "9")
-        XCTAssertEqual(keyRows(.colemakDH, page: .letters)[2].map(\.kind),
-                       [KeyKind.shift] + "zxcdvkh".map { KeyKind.character(String($0)) } + [KeyKind.backspace])
+        let rows = keyRows(.colemak, page: .letters)
+        XCTAssertEqual(rows[0].map(\.kind), "qwfpgjluy;".map { KeyKind.character(String($0)) })
+        XCTAssertEqual(rows[0][9].alternates, ["0", ":"])
+        XCTAssertEqual(rows[1].count, 10)
+        XCTAssertEqual(rows[0][8].alternates.first, "9")
     }
 
     func testPolishLetterFirst() {

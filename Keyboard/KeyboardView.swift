@@ -31,8 +31,10 @@ final class KeyboardView: UIView {
         var timer: Timer?
         var bubble: UIView?
         var anchor: CGPoint
+        var lastPoint: CGPoint
         var lastX: CGFloat
-        init(keyIndex: Int, point: CGPoint) { self.keyIndex = keyIndex; anchor = point; lastX = point.x }
+        var cursorMoved = false
+        init(keyIndex: Int, point: CGPoint) { self.keyIndex = keyIndex; anchor = point; lastPoint = point; lastX = point.x }
     }
 
     private var tracks: [ObjectIdentifier: Track] = [:]
@@ -140,7 +142,7 @@ final class KeyboardView: UIView {
             }
         case .space:
             keyViews[t.keyIndex].setPressed(true)
-            t.timer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { [weak self, weak t] _ in
+            t.timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self, weak t] _ in
                 guard let self, let t, case .normal = t.mode else { return }
                 self.setCursorMode(t, on: true)
             }
@@ -170,22 +172,26 @@ final class KeyboardView: UIView {
         for touch in touches {
             guard let t = tracks[ObjectIdentifier(touch)] else { continue }
             let p = touch.location(in: self)
+            t.lastPoint = p
             switch t.mode {
             case .normal:
                 if keys[t.keyIndex].kind == .space {
-                    if abs(p.x - t.anchor.x) > 12 { setCursorMode(t, on: true) }
-                } else if !t.committed, let j = keyIndex(at: p), j != t.keyIndex, case .character = keys[j].kind {
+                    // a thumb rolls on the wide space bar; only a clear sideways drag moves the cursor
+                    if abs(p.x - t.anchor.x) > 25 { setCursorMode(t, on: true) }
+                } else if !t.committed, hypot(p.x - t.anchor.x, p.y - t.anchor.y) > 14,
+                          let j = keyIndex(at: p), j != t.keyIndex, case .character = keys[j].kind {
                     t.keyIndex = j
                     showBubble(t)
                     startLongPress(t)
                 }
             case .alternates(let popup):
-                if hypot(p.x - t.anchor.x, p.y - t.anchor.y) > 6 { popup.select(at: convert(p, to: popup)) }
+                popup.select(dx: p.x - t.anchor.x, dy: p.y - t.anchor.y)
             case .cursor:
                 let steps = Int((p.x - t.lastX) / 9)
                 if steps != 0 {
                     onCursorMove?(steps)
                     t.lastX += CGFloat(steps) * 9
+                    t.cursorMoved = true
                 }
             case .function:
                 if keys[t.keyIndex].kind == .globe, let event { onGlobe?(keyViews[t.keyIndex], event) }
@@ -215,7 +221,9 @@ final class KeyboardView: UIView {
                 } else if kind != .shift, keyIndex(at: touch.location(in: self)) == t.keyIndex {
                     onKey?(kind) // may rebuild the keys, so it goes last
                 }
-            case .cursor, .backspace:
+            case .cursor:
+                if !t.cursorMoved { onKey?(.space) }
+            case .backspace:
                 break
             }
         }
@@ -223,7 +231,15 @@ final class KeyboardView: UIView {
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
-            if let t = tracks.removeValue(forKey: ObjectIdentifier(touch)) { end(t) }
+            guard let t = tracks.removeValue(forKey: ObjectIdentifier(touch)) else { continue }
+            end(t)
+            // iOS sometimes cancels keyboard touches; a lost tap is worse than a kept one
+            guard case .normal = t.mode else { continue }
+            switch keys[t.keyIndex].kind {
+            case .character(let s): if !t.committed { onInsert?(text(s)) }
+            case .space: onKey?(.space)
+            default: break
+            }
         }
     }
 
@@ -286,13 +302,16 @@ final class KeyboardView: UIView {
         t.bubble?.removeFromSuperview()
         t.bubble = nil
         let options = keys[t.keyIndex].alternates.map { text($0) }
-        let popup = AlternatesPopup(options: options)
+        let rightToLeft = key.midX > host.bounds.width / 2
+        let popup = AlternatesPopup(options: options, rightToLeft: rightToLeft)
         let size = popup.bounds.size
         popup.frame.origin = CGPoint(
-            x: PopupGeometry.originX(keyMidX: key.midX, popupWidth: size.width, containerWidth: host.bounds.width),
+            x: PopupGeometry.alternatesOriginX(keyMidX: key.midX, popupWidth: size.width, cellWidth: AlternatesPopup.cell.width,
+                                               pad: AlternatesPopup.pad, containerWidth: host.bounds.width, rightToLeft: rightToLeft),
             y: max(0, key.minY - size.height - 2)
         )
         host.addSubview(popup)
+        t.anchor = t.lastPoint
         t.mode = .alternates(popup)
     }
 
@@ -300,6 +319,7 @@ final class KeyboardView: UIView {
         if on {
             t.timer?.invalidate()
             t.mode = .cursor
+            t.lastX = t.lastPoint.x
         }
         keyViews.forEach { $0.setDimmed(on) }
     }
@@ -322,27 +342,31 @@ class PopupBox: UIView {
     required init?(coder: NSCoder) { fatalError() }
 }
 
-/// Grid of long-press options; first row sits at the bottom, next to the finger.
+/// Grid of long-press options. The first option sits above the finger; rows grow upward,
+/// columns grow away from the nearer screen edge.
 final class AlternatesPopup: PopupBox {
     private let options: [String]
+    private let rightToLeft: Bool
     private let cols: Int
     private let rowCount: Int
     private var labels: [UILabel] = []
-    private static let cell = CGSize(width: 34, height: 42)
-    private static let pad: CGFloat = 4
+    static let cell = CGSize(width: 34, height: 42)
+    static let pad: CGFloat = 4
     private(set) var selectedIndex = 0
     var selected: String? { options.indices.contains(selectedIndex) ? options[selectedIndex] : nil }
 
-    init(options: [String]) {
+    init(options: [String], rightToLeft: Bool) {
         self.options = options
+        self.rightToLeft = rightToLeft
         cols = min(max(options.count, 1), 8)
         rowCount = (options.count + cols - 1) / cols
         let cell = Self.cell
         super.init(frame: CGRect(x: 0, y: 0, width: CGFloat(cols) * cell.width + 2 * Self.pad,
                                  height: CGFloat(rowCount) * cell.height + 2 * Self.pad))
         for (i, option) in options.enumerated() {
+            let col = rightToLeft ? cols - 1 - i % cols : i % cols
             let label = UILabel(frame: CGRect(
-                x: Self.pad + CGFloat(i % cols) * cell.width,
+                x: Self.pad + CGFloat(col) * cell.width,
                 y: Self.pad + CGFloat(rowCount - 1 - i / cols) * cell.height,
                 width: cell.width, height: cell.height))
             label.text = option
@@ -360,11 +384,12 @@ final class AlternatesPopup: PopupBox {
 
     required init?(coder: NSCoder) { fatalError() }
 
-    func select(at p: CGPoint) {
-        let col = min(max(Int((p.x - Self.pad) / Self.cell.width), 0), cols - 1)
-        let visualRow = min(max(Int((p.y - Self.pad) / Self.cell.height), 0), rowCount - 1)
-        let index = (rowCount - 1 - visualRow) * cols + col
-        selectedIndex = min(index, options.count - 1)
+    /// `dx`/`dy`: finger movement since the popup opened.
+    func select(dx: CGFloat, dy: CGFloat) {
+        let index = PopupGeometry.alternateIndex(dx: dx, dy: dy, cellWidth: Self.cell.width, cellHeight: Self.cell.height,
+                                                 columns: cols, count: options.count, rightToLeft: rightToLeft)
+        guard index != selectedIndex else { return }
+        selectedIndex = index
         highlight()
     }
 

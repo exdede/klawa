@@ -13,7 +13,7 @@ final class KeyboardViewController: UIInputViewController {
     private var emojiPanel: EmojiPanel?
     private var layoutName = LayoutName.qwerty
     private var haptics = true
-    private var languageMode = LanguageMode.auto
+    private var languageMode = LanguageMode.pl
     private var lastSpaceAt: TimeInterval?
     private var lastKeyboardType: UIKeyboardType?
     private let feedback = UIImpactFeedbackGenerator(style: .light)
@@ -31,6 +31,7 @@ final class KeyboardViewController: UIInputViewController {
             v.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview(v)
         }
+        topBar.isUserInteractionEnabled = false // touches aimed high at the top row must not die here
         let height = view.heightAnchor.constraint(equalToConstant: KeyStyle.keyboardHeight)
         height.priority = UILayoutPriority(999)
         NSLayoutConstraint.activate([
@@ -81,12 +82,12 @@ final class KeyboardViewController: UIInputViewController {
         let d = AppGroup.defaults
         layoutName = d?.string(forKey: SettingsKey.layout).flatMap(LayoutName.init(rawValue:)) ?? .qwerty
         haptics = d?.object(forKey: SettingsKey.haptics) as? Bool ?? true
-        languageMode = d?.string(forKey: SettingsKey.languageMode).flatMap(LanguageMode.init(rawValue:)) ?? .auto
+        languageMode = d?.string(forKey: SettingsKey.languageMode).flatMap(LanguageMode.init(rawValue:)) ?? .pl
         applyLanguage()
     }
 
     private func applyLanguage() {
-        // Hint for the system (e.g. Apple dictation); suggestions come in Phase 2.
+        // Sets the Apple dictation language (verified on the phone); suggestions use it in Phase 2.
         primaryLanguage = languageMode == .en ? "en-US" : "pl-PL"
     }
 
@@ -123,12 +124,7 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func refresh() {
-        let language: (key: String, space: String)
-        switch languageMode {
-        case .auto: language = ("A", "PL · EN")
-        case .pl: language = ("PL", "Polski")
-        case .en: language = ("EN", "English")
-        }
+        let language = languageMode == .pl ? (key: "PL", space: "Polski") : (key: "EN", space: "English")
         keyboard.configure(rows: currentRows(), uppercase: state.page == .letters && state.shift != .off, shift: state.shift,
                            languageLabel: language.key, spaceLabel: language.space, returnLabel: returnLabel())
     }

@@ -24,7 +24,6 @@ struct ContentView: View {
                     Picker("Układ", selection: $layout) {
                         Text("QWERTY").tag(LayoutName.qwerty)
                         Text("Colemak").tag(LayoutName.colemak)
-                        Text("Colemak-DH").tag(LayoutName.colemakDH)
                     }
                     Toggle("Wibracje", isOn: $haptics)
                 } header: {

@@ -1,5 +1,5 @@
 public enum LayoutName: String, CaseIterable {
-    case qwerty, colemak, colemakDH
+    case qwerty, colemak
 }
 
 public enum Page {
@@ -28,12 +28,12 @@ public struct Key: Equatable {
     }
 }
 
-// `;` from the desktop Colemak top row is dropped on mobile.
 private let letterRows: [LayoutName: [String]] = [
     .qwerty: ["qwertyuiop", "asdfghjkl", "zxcvbnm"],
-    .colemak: ["qwfpgjluy", "arstdhneio", "zxcvbkm"],
-    .colemakDH: ["qwfpbjluy", "arstgmneio", "zxcdvkh"],
+    .colemak: ["qwfpgjluy;", "arstdhneio", "zxcvbkm"],
 ]
+
+private let polishLetters = Set("ąćęłńóśźż")
 
 private let accents: [String: [String]] = [
     "a": ["ą", "á", "à", "â", "ä", "ã", "å", "æ"],
@@ -59,6 +59,7 @@ private let symbolAlternates: [String: [String]] = [
     "?": ["¿"],
     "!": ["¡"],
     "&": ["§"],
+    ";": [":"],
 ]
 
 private func chars(_ items: [String], width: Double = 1) -> [Key] {
@@ -81,7 +82,11 @@ public func keyRows(_ layout: LayoutName, page: Page) -> [[Key]] {
         let rows = letterRows[layout]!
         let top = split(rows[0]).enumerated().map { i, ch in
             let digit = String((i + 1) % 10)
-            return Key(.character(ch), alternates: [digit] + (accents[ch] ?? []), hint: digit)
+            let accented = accents[ch] ?? symbolAlternates[ch] ?? []
+            // Polish letter first (release = ó for o), then the digit, then other accents.
+            let polish = accented.filter { polishLetters.contains(Character($0)) }
+            let others = accented.filter { !polishLetters.contains(Character($0)) }
+            return Key(.character(ch), alternates: polish + [digit] + others, hint: digit)
         }
         let letters = { (s: String) in split(s).map { Key(.character($0), alternates: accents[$0] ?? []) } }
         return [top, letters(rows[1]), [Key(.shift, width: 1.5)] + letters(rows[2]) + [Key(.backspace, width: 1.5)], bottom]

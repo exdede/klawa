@@ -36,6 +36,29 @@ public enum TextOps {
 public enum PopupGeometry {
     /// Left edge of a popup centered on a key, kept inside the container.
     public static func originX(keyMidX: Double, popupWidth: Double, containerWidth: Double, margin: Double = 2) -> Double {
-        min(max(keyMidX - popupWidth / 2, margin), containerWidth - popupWidth - margin)
+        clamp(keyMidX - popupWidth / 2, popupWidth: popupWidth, containerWidth: containerWidth, margin: margin)
+    }
+
+    /// Long-press strip: the first option sits right above the finger and the rest extend
+    /// away from the nearer screen edge (to the left for keys on the right half).
+    public static func alternatesOriginX(keyMidX: Double, popupWidth: Double, cellWidth: Double, pad: Double,
+                                         containerWidth: Double, rightToLeft: Bool, margin: Double = 2) -> Double {
+        let firstCellLeft = keyMidX - cellWidth / 2
+        let x = rightToLeft ? firstCellLeft + cellWidth + pad - popupWidth : firstCellLeft - pad
+        return clamp(x, popupWidth: popupWidth, containerWidth: containerWidth, margin: margin)
+    }
+
+    /// Selected option from how far the finger moved since the popup opened (dy < 0 = up).
+    /// No movement keeps the first option, so a plain release picks it.
+    public static func alternateIndex(dx: Double, dy: Double, cellWidth: Double, cellHeight: Double,
+                                      columns: Int, count: Int, rightToLeft: Bool) -> Int {
+        let rows = (count + columns - 1) / columns
+        let col = min(max(Int(((rightToLeft ? -dx : dx) / cellWidth).rounded()), 0), columns - 1)
+        let row = min(max(Int((-dy / cellHeight).rounded()), 0), rows - 1)
+        return min(row * columns + col, count - 1)
+    }
+
+    private static func clamp(_ x: Double, popupWidth: Double, containerWidth: Double, margin: Double) -> Double {
+        min(max(x, margin), containerWidth - popupWidth - margin)
     }
 }

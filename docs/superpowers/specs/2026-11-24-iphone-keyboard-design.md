@@ -20,8 +20,9 @@ Personal use only, one device. Not for the App Store.
 ## Goals (in owner's priority order)
 
 1. **Bilingual PL+EN typing with no globe switching.** Suggestions draw from both languages at once,
-   weighted by the language detected in the current sentence. **One tap** on a language key cycles
-   `Auto → PL → EN → Auto` for when detection is wrong. (Owner rejected per-app/per-chat language and
+   weighted toward the language picked with the **language key, which toggles `PL ↔ EN`** and also sets the
+   Apple dictation language (verified on the phone 2026-11-25). An `Auto` mode was tried and dropped by the
+   owner: dictation needs one language anyway. (Owner rejected per-app/per-chat language and
    the Shortcuts-automation trick — not needed.)
 2. **Stock-iOS look and feel:** iOS key shapes, colors, light/dark from system, key pop-up on press,
    iOS-like height. Plain, no themes.
@@ -37,7 +38,8 @@ Personal use only, one device. Not for the App Store.
    top letter row → digit first (q→1 … p→0, with small digit hint on the key like Gboard),
    letters → accents (a→ą, c→ć, e→ę, l→ł, n→ń, o→ó, s→ś, z→ż ź, plus common other accents),
    punctuation key → `, ? ! ' " - : ; ( ) @ / …` etc. Mappings are plain data, easy to extend.
-6. **Layouts:** QWERTY (default), **Colemak**, **Colemak-DH**, switchable in settings.
+6. **Layouts:** QWERTY (default) and **Colemak** (standard, `;` kept in the top row), switchable in settings.
+   Colemak-DH dropped (owner doesn't use it).
 7. **Smart clipboard (Gboard-style):** history of copied text, tap to paste, **pin** items,
    unpinned items **auto-delete after 1 hour**, and **chips extracted from text** (links, emails,
    phone numbers) so one part of a copied text can be pasted alone.
@@ -47,7 +49,8 @@ Personal use only, one device. Not for the App Store.
 ## Non-goals (now)
 
 Swipe/glide typing · themes/custom colors · grammar checking (iOS gives only spelling to us) ·
-emoji search · per-app or per-chat language · App Store / TestFlight · iPad.
+Genmoji (iOS gives third-party keyboards no way to create or insert them; use Apple's emoji keyboard via the globe) ·
+per-app or per-chat language · App Store / TestFlight · iPad.
 
 ## Anti-goals (failure even if it "works")
 
@@ -156,6 +159,7 @@ there (nothing to salvage beyond the code).
 1. **Typing core:** layouts, long-press popups, shift/caps, backspace repeat, space cursor drag,
    number/symbol pages, double-space period, field-aware keys, haptic/click feedback,
    **own emoji panel** behind the emoji key (categories + recently used; owner asked for the key next to `lang`).
+   **Emoji search** (PL + EN keywords) requested 2026-11-25, order vs Phase 2 to be decided.
 2. **Suggestions:** bilingual bar, language key `Auto/PL/EN`, spelling, autocorrect + undo, learning, math results. **Go/no-go.**
 3. **Clipboard:** history, pin, 1h expiry, chips. Verify iOS paste-permission behavior with Full Access.
 4. **Dictation 3b** (if owner still wants it after using 3a).
