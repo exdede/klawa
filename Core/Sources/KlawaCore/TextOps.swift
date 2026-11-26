@@ -58,8 +58,10 @@ extension TextOps {
 /// comes next. The bias is capped, so a touch near a key's center always gets that key.
 public enum TouchModel {
     static let sigma = 0.45      // in key pitches
-    static let weight = 0.4      // how much the letter odds count
-    static let maxLogRatio = 3.0 // odds above e^3 = 20x count no more
+    // Gentle: at most ~0.12 pitch (5 pt) of border shift. 0.4 / e^3 moved borders up to a quarter
+    // of a key, and the owner hit neighbor letters more often than on Apple's keyboard.
+    static let weight = 0.25     // how much the letter odds count
+    static let maxLogRatio = 2.3 // odds above e^2.3 = 10x count no more
 
     /// `offsets`: touch minus key center, in key pitches. `masses`: likelihood of each key's letter.
     public static func pick(offsets: [(dx: Double, dy: Double)], masses: [Double]) -> Int {

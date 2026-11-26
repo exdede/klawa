@@ -140,8 +140,10 @@ final class KeyboardView: UIView {
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             let p = touch.location(in: self)
+            commitPending() // fast typing: the earlier finger's letter or space goes first
+            // after the commit: a space on the 123 page switches to letters and rebuilds the keys
+            layoutIfNeeded()
             guard let nearest = keyIndex(at: p) else { continue }
-            commitPendingCharacters() // fast typing: the earlier finger's letter goes first
             let t = Track(keyIndex: likelyKey(at: p, nearest: nearest), point: p)
             tracks[ObjectIdentifier(touch)] = t
             onPress?()
@@ -174,7 +176,7 @@ final class KeyboardView: UIView {
         case .space:
             keyViews[t.keyIndex].setPressed(true)
             t.timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self, weak t] _ in
-                guard let self, let t, case .normal = t.mode else { return }
+                guard let self, let t, !t.committed, case .normal = t.mode else { return }
                 self.setCursorMode(t, on: true)
             }
         case .shift:
@@ -208,7 +210,7 @@ final class KeyboardView: UIView {
             case .normal:
                 if keys[t.keyIndex].kind == .space {
                     // a thumb rolls on the wide space bar; only a clear sideways drag moves the cursor
-                    if abs(p.x - t.anchor.x) > 25 { setCursorMode(t, on: true) }
+                    if !t.committed, abs(p.x - t.anchor.x) > 25 { setCursorMode(t, on: true) }
                 } else if !t.committed, hypot(p.x - t.anchor.x, p.y - t.anchor.y) > 14,
                           let j = keyIndex(at: p), j != t.keyIndex, case .character = keys[j].kind {
                     keyViews[t.keyIndex].setPressed(false)
@@ -241,7 +243,7 @@ final class KeyboardView: UIView {
             case .normal:
                 switch keys[t.keyIndex].kind {
                 case .character(let s): if !t.committed { onInsert?(text(s)) }
-                case .space: onKey?(.space)
+                case .space: if !t.committed { onKey?(.space) }
                 default: break
                 }
             case .alternates(let popup):
@@ -269,7 +271,7 @@ final class KeyboardView: UIView {
             guard case .normal = t.mode else { continue }
             switch keys[t.keyIndex].kind {
             case .character(let s): if !t.committed { onInsert?(text(s)) }
-            case .space: onKey?(.space)
+            case .space: if !t.committed { onKey?(.space) }
             default: break
             }
         }
@@ -288,18 +290,27 @@ final class KeyboardView: UIView {
         }
     }
 
-    private func commitPendingCharacters() {
-        let pending = tracks.values.filter { t in
-            guard !t.committed, case .normal = t.mode, case .character = keys[t.keyIndex].kind else { return false }
-            return true
+    /// Like iOS, a new finger commits what earlier fingers still hold, in the order they went
+    /// down. Without the space here, "a", space, "b" with the space thumb still down gave "ab ".
+    private func commitPending() {
+        let pending = tracks.values.compactMap { t -> (Track, KeyKind)? in
+            guard !t.committed, case .normal = t.mode else { return nil }
+            switch keys[t.keyIndex].kind {
+            case .character, .space: return (t, keys[t.keyIndex].kind)
+            default: return nil
+            }
         }
-        for t in pending.sorted(by: { $0.downAt < $1.downAt }) {
-            guard case .character(let s) = keys[t.keyIndex].kind else { continue }
+        // kinds read first: committing a space may rebuild the keys
+        for (t, kind) in pending.sorted(by: { $0.0.downAt < $1.0.downAt }) {
             t.committed = true
             t.timer?.invalidate()
             t.bubble?.removeFromSuperview()
             t.bubble = nil
-            onInsert?(text(s))
+            switch kind {
+            case .character(let s): onInsert?(text(s))
+            case .space: onKey?(.space)
+            default: break
+            }
         }
     }
 

@@ -106,6 +106,13 @@ final class KeyboardViewController: UIInputViewController {
         }
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // iOS holds touches near the screen edges back for its edge gestures, so q, a, o, p,
+        // shift and backspace came late or after the next key. The keyboard wants them at once.
+        view.window?.gestureRecognizers?.forEach { $0.delaysTouchesBegan = false }
+    }
+
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         saveUserWords()

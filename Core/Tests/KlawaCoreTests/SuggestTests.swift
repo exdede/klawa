@@ -145,6 +145,8 @@ final class WordAndTouchTests: XCTestCase {
         XCTAssertEqual(TouchModel.pick(offsets: [(0, 0), (-1, 0)], masses: [0.001, 1]), 0)
         // touch on the border between them goes to the likely key
         XCTAssertEqual(TouchModel.pick(offsets: [(0.45, 0), (-0.55, 0)], masses: [0.001, 1]), 1)
+        // a touch 0.3 pitch off center keeps its key even against 1000x odds (gentle bias)
+        XCTAssertEqual(TouchModel.pick(offsets: [(0.3, 0), (-0.7, 0)], masses: [0.001, 1]), 0)
         // no odds: nearest key
         XCTAssertEqual(TouchModel.pick(offsets: [(0.45, 0), (-0.55, 0)], masses: [0, 0]), 0)
     }
