@@ -20,7 +20,8 @@ final class EmojiSearchTests: XCTestCase {
     ❤️\tczerwone|kocham|milosc|serce|czerwone serce|heart|love
     🐱\tkot|kotek|glowa kota|cat|cat face
     🐈\tkot|zwierze|cat
-    🍕\tpizza|jedzenie|food
+    🍄‍🟫\tgrzyb|pizza|mushroom\tbrazowy grzyb|brown mushroom
+    🍕\tpizza|jedzenie|food\tpizza|pizza
     """)
 
     func testSearch() {
@@ -36,5 +37,7 @@ final class EmojiSearchTests: XCTestCase {
         XCTAssertEqual(search.exact("Kot"), ["🐱", "🐈"])
         XCTAssertEqual(search.exact("miłość"), ["❤️"])
         XCTAssertEqual(search.exact("ko"), [])
+        XCTAssertEqual(search.exact("pizza"), ["🍕", "🍄‍🟫"]) // named pizza beats keyword pizza
+        XCTAssertEqual(search.search("pizza"), ["🍕", "🍄‍🟫"])
     }
 }

@@ -39,6 +39,7 @@ final class SuggestionBar: UIView {
         for _ in 0..<3 {
             let l = UILabel()
             l.font = .systemFont(ofSize: 17)
+            l.textColor = KeyStyle.barText
             l.lineBreakMode = .byTruncatingMiddle
             l.textAlignment = .center
             l.layer.cornerRadius = 8

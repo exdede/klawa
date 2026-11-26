@@ -365,7 +365,7 @@ final class KeyboardView: UIView {
 class PopupBox: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)
-        backgroundColor = KeyStyle.letterKey
+        backgroundColor = KeyStyle.popupKey
         layer.cornerRadius = KeyStyle.cornerRadius
         layer.cornerCurve = .continuous
         layer.shadowColor = UIColor.black.cgColor

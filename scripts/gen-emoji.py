@@ -4,9 +4,9 @@ from Unicode CLDR annotations (Polish + English names and keywords, for emoji se
 
 emoji.txt: one line per group, `Name<TAB>emoji emoji ...`. Fully-qualified emoji only,
 no Component group, no skin-tone variants.
-emoji-keywords.txt: `emoji<TAB>keyword|keyword...`, folded like Lexicon.fold, catalog order.
+emoji-keywords.txt: `emoji<TAB>keyword|keyword...<TAB>name|name`, folded like Lexicon.fold, catalog order.
+The names (CLDR tts, "pizza" for 🍕) let the suggestion bar prefer 🍕 over 🍄‍🟫, whose keywords also say pizza.
 emoji-tones.txt: `emoji<TAB>5 skin-tone variants` for emoji with one skin tone (long-press in the panel).
-shortcut: no skin-tone picker, add one if the owner wants it.
 """
 import sys
 import urllib.request
@@ -19,8 +19,8 @@ FOLD = str.maketrans("ąćęłńóśźż", "acelnoszz", "'’")
 
 
 def keywords():
-    """emoji without FE0F -> folded keywords and names from pl and en."""
-    out = {}
+    """emoji without FE0F -> (folded keywords and names, folded names only), from pl and en."""
+    out, names = {}, {}
     for lang in ("pl", "en"):
         for kind in ("annotations", "annotationsDerived"):
             root = ET.fromstring(urllib.request.urlopen(CLDR.format(kind, lang), timeout=30).read())
@@ -30,7 +30,9 @@ def keywords():
                 for w in words:
                     if w and w not in kws:
                         kws.append(w)
-    return out
+                if a.get("type") == "tts":
+                    names.setdefault(a.get("cp").replace("\ufe0f", ""), []).extend(w for w in words if w)
+    return out, names
 
 
 GROUPS = {
@@ -77,7 +79,7 @@ def main(out_path):
                 variants = tones.get(e.replace("\ufe0f", ""), [])
                 if len(variants) == 5:
                     f.write(f"{e}\t{' '.join(variants)}\n")
-    kw = keywords()
+    kw, names = keywords()
     found = 0
     with open(out_path.replace("emoji.txt", "emoji-keywords.txt"), "w", encoding="utf-8") as f:
         for name in GROUPS.values():
@@ -85,7 +87,7 @@ def main(out_path):
                 words = kw.get(e.replace("\ufe0f", ""))
                 if words:
                     found += 1
-                    f.write(f"{e}\t{'|'.join(words)}\n")
+                    f.write(f"{e}\t{'|'.join(words)}\t{'|'.join(names.get(e.replace(chr(0xFE0F), ''), []))}\n")
     print(found, "emoji with keywords")
 
 
